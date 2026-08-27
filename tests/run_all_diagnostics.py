@@ -13,6 +13,7 @@ def main():
         ("Bias Checker", "tests/responsibility_checkers/test_bias_diagnostic.py"),
         ("PII Checker", "tests/responsibility_checkers/test_pii_diagnostic.py"),
         ("Cost Monitor", "tests/cost_monitor/test_cost_diagnostic.py"),
+        ("Risk Engine", "tests/engine/test_risk_engine_diagnostic.py"),
     ]
     
     all_passed = True
