@@ -71,6 +71,13 @@
 - Any deviation from the instruction files, and why: Added an extreme edge-case handler for pipeline exceptions to guarantee audit logging even during server crashes.
 - Next immediate step: Phase 7 — Build Dashboard UI and FastAPI routes.
 
+## [Phase 7 — Dashboard UI] — DONE
+- What was built: FastAPI routes (`/api/chat`, `/api/policies`), static file mounting, and an ultra-premium HTML/JS/CSS dashboard.
+- What was tested and confirmed by human: API diagnostic confirmed routing, health checks, and fallback mechanisms work.
+- What is still stubbed/incomplete: Real Gemini LLM integration (currently using MockAdapter for zero-cost demo UI testing).
+- Any deviation from the instruction files, and why: Defaulted the `dependencies.py` to `MockAdapter` so you do not drain your free Gemini API credits while testing the UI.
+- Next immediate step: Phase 8 — Metrics Summary (Dashboard additions).
+
 ## [Phase 3 — Risk Engine + Overlap Detection] — IN PROGRESS
 - What was built: (nothing yet)
 - What was tested and confirmed by human: (n/a)
