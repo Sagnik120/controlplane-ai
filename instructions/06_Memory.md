@@ -42,3 +42,10 @@
 - What is still stubbed/incomplete: Checkers and orchestrator.
 - Any deviation from the instruction files, and why: Replaced deprecated `google-generativeai` with `google-genai`.
 - Next immediate step: Phase 2 — Implement Individual Checkers (Performance, Safety, Bias, PII) and Cost Monitor.
+
+## [Phase 2 — Individual Checkers] — DONE
+- What was built: Pydantic Base CheckerResult, Performance Checker, Safety Checker, Bias Checker, PII Checker, Cost Monitor.
+- What was tested and confirmed by human: run_all_diagnostics.py executed and showed SYSTEM STATUS: STABLE.
+- What is still stubbed/incomplete: Risk Engine combining these checkers.
+- Any deviation from the instruction files, and why: None.
+- Next immediate step: Phase 3 — Implement Risk Engine and Overlap Detection.
