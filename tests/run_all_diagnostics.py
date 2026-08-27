@@ -14,6 +14,7 @@ def main():
         ("PII Checker", "tests/responsibility_checkers/test_pii_diagnostic.py"),
         ("Cost Monitor", "tests/cost_monitor/test_cost_diagnostic.py"),
         ("Risk Engine", "tests/engine/test_risk_engine_diagnostic.py"),
+        ("Policy Layer", "tests/policy/test_policy_diagnostic.py"),
     ]
     
     all_passed = True

@@ -48,7 +48,14 @@
 - What was tested and confirmed by human: run_all_diagnostics.py executed and showed SYSTEM STATUS: STABLE.
 - What is still stubbed/incomplete: Risk Engine combining these checkers.
 - Any deviation from the instruction files, and why: None.
-- Next immediate step: Phase 3 — Implement Risk Engine and Overlap Detection.
+- Next immediate step: Phase 4 — Implement Use-Case Policy Config and Control Policy.
+
+## [Phase 4 — Use-Case Policy Config + Control Policy] — DONE
+- What was built: UseCasePolicy and ControlDecision schemas, ControlPolicy logic module.
+- What was tested and confirmed by human: test_policy_diagnostic.py executed 8/8 scenarios perfectly.
+- What is still stubbed/incomplete: Audit log for decisions.
+- Any deviation from the instruction files, and why: None.
+- Next immediate step: Phase 5 — Implement Audit Log.
 
 ## [Phase 3 — Risk Engine + Overlap Detection] — IN PROGRESS
 - What was built: (nothing yet)

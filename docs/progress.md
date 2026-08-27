@@ -8,8 +8,8 @@ Last updated: 2026-08-28
 - [x] Phase 0 — Project Skeleton
 - [x] Phase 1 — LLM Adapter Layer
 - [x] Phase 2 — Individual Checkers
-- [ ] Phase 3 — Risk Engine + Overlap Detection
-- [ ] Phase 4 — Use-Case Policy Config + Control Policy
+- [x] Phase 3 — Risk Engine + Overlap Detection
+- [x] Phase 4 — Use-Case Policy Config + Control Policy
 - [ ] Phase 5 — Audit Log
 - [ ] Phase 6 — Full Orchestrator Integration
 - [ ] Phase 7 — Dashboard UI
@@ -17,9 +17,11 @@ Last updated: 2026-08-28
 - [ ] Phase 9 — Documentation & Final Polish
 
 ## Currently In Progress
-- Phase 3 — Risk Engine + Overlap Detection (Building orchestrator and span overlap logic)
+- Phase 5 — Audit Log
 
 ## Completed (most recent first)
+- 2026-08-28 — Phase 4 completed — Policy Layer schemas and Control decision logic built
+- 2026-08-28 — Phase 3 completed — Risk engine and overlap orchestration built
 - 2026-08-28 — Phase 2 completed — All checkers implemented, SYSTEM STATUS STABLE in deep diagnostic
 - 2026-08-28 — Phase 1 completed — 12/12 deep diagnostic tests passed for adapters
 - 2026-08-28 — Phase 0 completed — /health endpoint running successfully
