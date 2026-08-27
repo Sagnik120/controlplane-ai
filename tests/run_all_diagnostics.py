@@ -17,6 +17,7 @@ def main():
         ("Policy Layer", "tests/policy/test_policy_diagnostic.py"),
         ("Audit Log", "tests/audit/test_audit_diagnostic.py"),
         ("Full Orchestrator (E2E)", "tests/orchestrator/test_orchestrator_diagnostic.py"),
+        ("API Endpoints", "tests/api/test_api_diagnostic.py"),
     ]
     
     all_passed = True
