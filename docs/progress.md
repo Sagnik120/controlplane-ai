@@ -17,7 +17,7 @@ Last updated: 2026-08-28
 - [ ] Phase 9 — Documentation & Final Polish
 
 ## Currently In Progress
-- Phase 3 — Risk Engine + Overlap Detection
+- Phase 3 — Risk Engine + Overlap Detection (Building orchestrator and span overlap logic)
 
 ## Completed (most recent first)
 - 2026-08-28 — Phase 2 completed — All checkers implemented, SYSTEM STATUS STABLE in deep diagnostic

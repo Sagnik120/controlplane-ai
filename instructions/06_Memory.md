@@ -49,3 +49,10 @@
 - What is still stubbed/incomplete: Risk Engine combining these checkers.
 - Any deviation from the instruction files, and why: None.
 - Next immediate step: Phase 3 — Implement Risk Engine and Overlap Detection.
+
+## [Phase 3 — Risk Engine + Overlap Detection] — IN PROGRESS
+- What was built: (nothing yet)
+- What was tested and confirmed by human: (n/a)
+- What is still stubbed/incomplete: Risk Engine logic.
+- Any deviation from the instruction files, and why: none
+- Next immediate step: Build Risk Engine, overlap logic, and diagnostic script.
