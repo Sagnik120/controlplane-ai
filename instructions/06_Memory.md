@@ -57,6 +57,13 @@
 - Any deviation from the instruction files, and why: None.
 - Next immediate step: Phase 5 — Implement Audit Log.
 
+## [Phase 5 — Audit Log] — DONE
+- What was built: O(1) performance JSONL AuditLogger.
+- What was tested and confirmed by human: test_audit_diagnostic.py verified file creation and JSON schema integrity.
+- What is still stubbed/incomplete: Full pipeline integration (Phase 6).
+- Any deviation from the instruction files, and why: Upgraded from standard JSON array to JSONL (JSON Lines) to allow O(1) appending and prevent memory crashes on large log files.
+- Next immediate step: Phase 6 — Full Orchestrator Integration.
+
 ## [Phase 3 — Risk Engine + Overlap Detection] — IN PROGRESS
 - What was built: (nothing yet)
 - What was tested and confirmed by human: (n/a)
