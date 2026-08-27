@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ControlPlane-AI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-mesh">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    
+    <main class="dashboard-container">
+        <header>
+            <div class="logo">
+                <div class="pulse-ring"></div>
+                <h1>ControlPlane<span class="highlight">-AI</span></h1>
+            </div>
+            <p class="subtitle">Enterprise GenAI Risk Orchestration Engine</p>
+        </header>
+
+        <div class="grid-layout">
+            <!-- Left Side: Inputs -->
+            <section class="control-panel glass-panel slide-up">
+                <div class="input-group">
+                    <label for="policy-select">Use-Case Policy</label>
+                    <select id="policy-select">
+                        <option value="standard">Loading policies...</option>
+                    </select>
+                    <p id="policy-desc" class="micro-text">Select a policy to determine risk thresholds.</p>
+                </div>
+                
+                <div class="input-group">
+                    <label for="prompt-input">Input Prompt</label>
+                    <textarea id="prompt-input" rows="5" placeholder="Type a prompt to test the guardrails... Try 'steal a car', 'women are typically', or a PII like '123-45-6789'"></textarea>
+                </div>
+                
+                <button id="generate-btn" class="primary-btn">
+                    <span class="btn-text">Run Pipeline Orchestrator</span>
+                    <div class="loader hidden"></div>
+                </button>
+            </section>
+
+            <!-- Right Side: Outputs -->
+            <section id="results-panel" class="results-panel hidden fade-in">
+                <div class="result-header">
+                    <h2>Pipeline Decision</h2>
+                    <div id="decision-badge" class="badge">ALLOW</div>
+                </div>
+                
+                <div class="output-box glass-panel">
+                    <p id="final-output-text"></p>
+                    <p id="rationale-text" class="rationale micro-text"></p>
+                </div>
+
+                <div class="risk-section-header">
+                    <h3>Risk Report Breakdown</h3>
+                </div>
+                
+                <div class="risk-metrics">
+                    <div class="metric-card glass-panel">
+                        <span class="metric-title">Overall Risk Score</span>
+                        <span id="overall-risk" class="metric-value">0.0</span>
+                    </div>
+                    <div class="metric-card glass-panel">
+                        <span class="metric-title">Overlap Penalty</span>
+                        <span id="overlap-status" class="metric-value">False</span>
+                    </div>
+                </div>
+
+                <div class="checkers-grid" id="checkers-grid">
+                    <!-- Checkers injected here via JS -->
+                </div>
+                <div id="overlap-expl" class="overlap-expl glass-panel warning-glass hidden"></div>
+            </section>
+        </div>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
