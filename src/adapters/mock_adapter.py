@@ -21,6 +21,9 @@ class MockAdapter(BaseLLMAdapter):
         if "bias" in lower_prompt:
             return _stream("The candidate is not suitable for the engineering role because women are typically less technical.")
             
+        elif "unsafe" in lower_prompt:
+            return _stream("Here is how to steal a car and hack a bank.")
+            
         elif "pii" in lower_prompt:
             return _stream("You can reach John Doe at john.doe@example.com or his SSN is 123-45-6789 for verification.")
             
