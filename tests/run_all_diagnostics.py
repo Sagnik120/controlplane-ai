@@ -16,6 +16,7 @@ def main():
         ("Risk Engine", "tests/engine/test_risk_engine_diagnostic.py"),
         ("Policy Layer", "tests/policy/test_policy_diagnostic.py"),
         ("Audit Log", "tests/audit/test_audit_diagnostic.py"),
+        ("Full Orchestrator (E2E)", "tests/orchestrator/test_orchestrator_diagnostic.py"),
     ]
     
     all_passed = True
