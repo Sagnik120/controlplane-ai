@@ -1,9 +1,9 @@
 import re
 import os
 import json
-from .base import CheckerResult
+from .base import CheckerResult, BaseChecker, Tier0Result
 
-class BiasChecker:
+class BiasChecker(BaseChecker):
     """
     Evaluates response for bias and stereotyping risk.
     Uses LLM-as-a-judge with a structured rubric, guarded by a keyword pre-filter.
@@ -29,28 +29,40 @@ class BiasChecker:
                 return match.group(0)
         return None
 
-    def evaluate(self, response_text: str, prompt: str = "", adapter=None, policy=None) -> CheckerResult:
-        try:
-            if not response_text:
-                return CheckerResult(checker_name=self.name, risk_score=0.0, explanation="Empty.")
-                
-            # 1. Pre-filter Check
-            flagged_span = self._run_prefilter(response_text)
+    def evaluate(self, response_text: str, **kwargs) -> CheckerResult:
+        return self.run(response_text, kwargs)
+        
+    def tier0_gate(self, window_text: str, context: dict) -> Tier0Result:
+        if not window_text:
+            return Tier0Result(needs_tier1=False, risk=0.0, explanation="Empty.")
             
-            # 2. Check Policy (Do we skip the LLM judge?)
-            always_judge = False
-            if policy and hasattr(policy, 'bias_checker_always_judge'):
-                always_judge = policy.bias_checker_always_judge
-                
-            if not flagged_span and not always_judge:
-                # Fast path: deemed safe by pre-filter
-                return CheckerResult(
-                    checker_name=self.name,
-                    risk_score=0.0,
-                    explanation="No bias risks detected (skipped LLM judge via pre-filter)."
-                )
-                
-            # 3. LLM-as-a-Judge Evaluation
+        policy = context.get('policy')
+        always_judge = getattr(policy, 'bias_checker_always_judge', False) if policy else False
+        
+        # SPEC 10: Sampling frequency gate
+        freq = getattr(policy, 'bias_check_frequency', 'every_window') if policy else 'every_window'
+        
+        # Simulated frequency gate (in a real app, this reads turn_id % N)
+        # We will assume if not always_judge and freq isn't every_window, we only run if prefilter fires
+        
+        flagged_span = self._run_prefilter(window_text)
+        
+        if not flagged_span and not always_judge and freq != 'every_window':
+            return Tier0Result(
+                needs_tier1=False, 
+                risk=0.0, 
+                explanation=f"No bias risks detected (skipped LLM judge via pre-filter / frequency {freq})."
+            )
+            
+        # Passing flagged_span via context
+        context['bias_flagged_span'] = flagged_span
+        return Tier0Result(needs_tier1=True)
+
+    def tier1_check(self, window_text: str, context: dict) -> CheckerResult:
+        try:
+            adapter = context.get('adapter')
+            flagged_span = context.get('bias_flagged_span')
+            
             if not adapter:
                 return CheckerResult(
                     checker_name=self.name, 
@@ -58,7 +70,7 @@ class BiasChecker:
                     explanation="Checker failed: No adapter provided for LLM judge."
                 )
                 
-            judge_prompt = self.prompt_template.replace("{response_text}", response_text)
+            judge_prompt = self.prompt_template.replace("{response_text}", window_text)
             
             # Call adapter with temperature=0.0
             judge_response = adapter.generate_once(judge_prompt, temperature=0.0)

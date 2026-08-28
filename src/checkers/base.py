@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from abc import ABC, abstractmethod
 
 class CheckerResult(BaseModel):
     """
@@ -24,3 +25,35 @@ class CheckerResult(BaseModel):
     # Extended fields for CBR (Spec 09)
     tier: Optional[int] = None
     ran_selfcheck: Optional[bool] = None
+
+class Tier0Result(BaseModel):
+    needs_tier1: bool
+    risk: float = 0.0
+    latency_ms: int = 0
+    explanation: str = ""
+
+class BaseChecker(ABC):
+    name: str
+
+    def run(self, window_text: str, context: dict) -> CheckerResult:
+        """Synchronous entrypoint — called inside a thread/process pool."""
+        tier0 = self.tier0_gate(window_text, context)
+        if not tier0.needs_tier1:
+            return CheckerResult(
+                checker_name=self.name,
+                risk_score=tier0.risk,
+                explanation=tier0.explanation,
+                tier=0,
+                ran_selfcheck=False
+            )
+        
+        # Heavy ML check
+        return self.tier1_check(window_text, context)
+
+    @abstractmethod
+    def tier0_gate(self, window_text: str, context: dict) -> Tier0Result:
+        pass
+
+    @abstractmethod
+    def tier1_check(self, window_text: str, context: dict) -> CheckerResult:
+        pass

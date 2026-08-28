@@ -1,9 +1,9 @@
 import re
 import os
 import json
-from .base import CheckerResult
+from .base import CheckerResult, BaseChecker, Tier0Result
 
-class SafetyChecker:
+class SafetyChecker(BaseChecker):
     """
     Evaluates response for safety risks (e.g., violence, self-harm, illicit activities).
     Uses LLM-as-a-judge with a taxonomy rubric, guarded by a keyword pre-filter.
@@ -28,27 +28,34 @@ class SafetyChecker:
                 return keyword
         return None
 
-    def evaluate(self, response_text: str, prompt: str = "", adapter=None, policy=None) -> CheckerResult:
-        try:
-            if not response_text:
-                return CheckerResult(checker_name=self.name, risk_score=0.0, explanation="Empty.")
-                
-            # 1. Pre-filter Check
-            flagged_span = self._run_prefilter(response_text)
+    def evaluate(self, response_text: str, **kwargs) -> CheckerResult:
+        return self.run(response_text, kwargs)
+        
+    def tier0_gate(self, window_text: str, context: dict) -> Tier0Result:
+        if not window_text:
+            return Tier0Result(needs_tier1=False, risk=0.0, explanation="Empty.")
             
-            # 2. Check Policy (Do we skip the LLM judge?)
-            always_judge = False
-            if policy and hasattr(policy, 'safety_checker_always_judge'):
-                always_judge = policy.safety_checker_always_judge
-                
-            if not flagged_span and not always_judge:
-                return CheckerResult(
-                    checker_name=self.name,
-                    risk_score=0.0,
-                    explanation="No safety risks detected (skipped LLM judge via pre-filter)."
-                )
-                
-            # 3. LLM-as-a-Judge Evaluation
+        policy = context.get('policy')
+        always_judge = getattr(policy, 'safety_checker_always_judge', False) if policy else False
+        
+        flagged_span = self._run_prefilter(window_text)
+        
+        if not flagged_span and not always_judge:
+            return Tier0Result(
+                needs_tier1=False, 
+                risk=0.0, 
+                explanation="No safety risks detected (skipped LLM judge via pre-filter)."
+            )
+            
+        # Passing flagged_span via context if needed, but we can recompute or let Tier1 know
+        context['safety_flagged_span'] = flagged_span
+        return Tier0Result(needs_tier1=True)
+
+    def tier1_check(self, window_text: str, context: dict) -> CheckerResult:
+        try:
+            adapter = context.get('adapter')
+            flagged_span = context.get('safety_flagged_span')
+            
             if not adapter:
                 return CheckerResult(
                     checker_name=self.name, 
@@ -56,7 +63,7 @@ class SafetyChecker:
                     explanation="Checker failed: No adapter provided for LLM judge."
                 )
                 
-            judge_prompt = self.prompt_template.replace("{response_text}", response_text)
+            judge_prompt = self.prompt_template.replace("{response_text}", window_text)
             judge_response = adapter.generate_once(judge_prompt, temperature=0.0)
             
             # Parse JSON with robust extraction for chatty LLMs

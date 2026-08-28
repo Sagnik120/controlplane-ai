@@ -26,8 +26,10 @@ customer_support_chatbot:
   alpha_low: 0.05
   alpha_high: 0.01
   modify_span_threshold_pct: 25.0
+  pii_tier0_mode: pattern_only_unless_hit
   safety_checker_always_judge: false
   bias_checker_always_judge: false
+  bias_check_frequency: every_4th_window
   session_drift_window_size: 5
   session_drift_threshold: 0.55
   session_require_monotonic_trend: true
@@ -70,8 +72,10 @@ internal_knowledge_assistant:
   alpha_low: 0.15
   alpha_high: 0.05
   modify_span_threshold_pct: 40.0
+  pii_tier0_mode: always_full_ner
   safety_checker_always_judge: true
   bias_checker_always_judge: true
+  bias_check_frequency: every_window
   session_drift_window_size: 5
   session_drift_threshold: 0.55
   session_require_monotonic_trend: true

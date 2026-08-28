@@ -12,7 +12,8 @@ except ImportError:
     RecognizerResult = None
     NlpEngineProvider = None
 
-from .base import CheckerResult
+from .base import CheckerResult, BaseChecker, Tier0Result
+import re
 
 class PiiranhaRecognizer(EntityRecognizer):
     """
@@ -51,7 +52,7 @@ class PiiranhaRecognizer(EntityRecognizer):
                 results.append(res)
         return results
 
-class PiiChecker:
+class PiiChecker(BaseChecker):
     name = "pii"
     
     def __init__(self, analyzer=None):
@@ -93,11 +94,37 @@ class PiiChecker:
             self.analyzer = AnalyzerEngine(registry=registry, nlp_engine=nlp_engine, supported_languages=["en"])
             
     def evaluate(self, response_text: str, **kwargs) -> CheckerResult:
+        # For legacy compatibility, call run
+        return self.run(response_text, kwargs)
+        
+    def tier0_gate(self, window_text: str, context: dict) -> Tier0Result:
+        if not window_text:
+            return Tier0Result(needs_tier1=False, risk=0.0, explanation="Empty.")
+            
+        policy = context.get('policy')
+        mode = getattr(policy, 'pii_tier0_mode', 'always_full_ner') if policy else 'always_full_ner'
+        
+        if mode == 'always_full_ner':
+            return Tier0Result(needs_tier1=True)
+            
+        # pattern_only_unless_hit
+        # Fast regex for numbers/emails/capitalized words
+        has_digit_sequence = bool(re.search(r'\d{3,}', window_text))
+        has_email = bool(re.search(r'\S+@\S+', window_text))
+        has_capitalized_run = bool(re.search(r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b', window_text))
+        
+        if has_digit_sequence or has_email or has_capitalized_run:
+            return Tier0Result(needs_tier1=True)
+            
+        return Tier0Result(
+            needs_tier1=False, 
+            risk=0.0, 
+            explanation="Tier-0 Regex gate confident: No entity-shaped tokens detected."
+        )
+
+    def tier1_check(self, window_text: str, context: dict) -> CheckerResult:
         try:
-            if not response_text:
-                return CheckerResult(checker_name=self.name, risk_score=0.0, explanation="Empty.", entities=[])
-                
-            policy = kwargs.get('policy')
+            policy = context.get('policy')
             
             # Default allowlist if no policy provided
             allowlist = ["EMAIL_ADDRESS", "PHONE_NUMBER", "US_SSN", "CREDIT_CARD", "PERSON", "EMAIL", "SSN"]
@@ -108,7 +135,7 @@ class PiiChecker:
                 min_confidence = getattr(policy, 'pii_min_confidence', min_confidence)
                 
             results = self.analyzer.analyze(
-                text=response_text,
+                text=window_text,
                 language="en",
                 entities=allowlist
             )
@@ -124,7 +151,7 @@ class PiiChecker:
             for r in valid_results:
                 entities.append({
                     "entity_type": r.entity_type,
-                    "text": response_text[r.start:r.end],
+                    "text": window_text[r.start:r.end],
                     "span_start": r.start,
                     "span_end": r.end,
                     "confidence": float(r.score),
@@ -140,7 +167,7 @@ class PiiChecker:
                 prob_safe *= (1.0 - float(r.score))
                 if r.score > highest_score:
                     highest_score = float(r.score)
-                    flagged_span = response_text[r.start:r.end]
+                    flagged_span = window_text[r.start:r.end]
                     
             risk_score = 1.0 - prob_safe
             

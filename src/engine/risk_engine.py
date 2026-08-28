@@ -1,5 +1,7 @@
 import os
 import yaml
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
@@ -41,6 +43,7 @@ class RiskEngine:
             PiiChecker()
         ]
         self.cost_monitor = CostMonitor()
+        self.thread_pool = ThreadPoolExecutor(max_workers=4)
         
         # Load severity matrix
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -76,16 +79,67 @@ class RiskEngine:
         return indices
         
     def evaluate_response(self, response_text: str, generation_time_ms: int = 0, model_tier: str = "standard", prompt: str = "", adapter=None, policy=None) -> FinalRiskReport:
-        results = []
-        
-        # 1. Run standard checkers
-        for checker in self.checkers:
-            if checker.name in ["performance", "bias", "safety"]:
-                results.append(checker.evaluate(response_text, prompt=prompt, adapter=adapter, policy=policy))
-            else:
-                results.append(checker.evaluate(response_text))
+        """Synchronous wrapper for the parallel evaluate."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
             
-        # 2. Run cost monitor
+        if loop and loop.is_running():
+            # If we are already inside an event loop (e.g. testing with pytest-asyncio),
+            # we need to handle this carefully. For the hackathon, we can use a new thread or nested loop.
+            import threading
+            result = None
+            def run_in_thread():
+                nonlocal result
+                result = asyncio.run(self.evaluate_response_async(response_text, generation_time_ms, model_tier, prompt, adapter, policy))
+            t = threading.Thread(target=run_in_thread)
+            t.start()
+            t.join()
+            return result
+        else:
+            return asyncio.run(self.evaluate_response_async(response_text, generation_time_ms, model_tier, prompt, adapter, policy))
+
+    async def evaluate_response_async(self, response_text: str, generation_time_ms: int = 0, model_tier: str = "standard", prompt: str = "", adapter=None, policy=None) -> FinalRiskReport:
+        
+        # 1. Dispatch Checkers in Parallel
+        loop = asyncio.get_running_loop()
+        futures = []
+        context = {
+            'prompt': prompt,
+            'adapter': adapter,
+            'policy': policy
+        }
+        
+        for checker in self.checkers:
+            # We use the new BaseChecker run method which is synchronous.
+            # We run it in the thread pool to avoid blocking the event loop.
+            if checker.name in ["performance", "bias", "safety", "pii"]:
+                futures.append(loop.run_in_executor(self.thread_pool, checker.run, response_text, context))
+            else:
+                # Fallback for any checkers not yet updated
+                futures.append(loop.run_in_executor(self.thread_pool, checker.evaluate, response_text))
+                
+        # Wait for all checkers to complete concurrently
+        # return_exceptions=True prevents a single crashed checker from killing the pipeline
+        raw_results = await asyncio.gather(*futures, return_exceptions=True)
+        
+        results = []
+        for i, res in enumerate(raw_results):
+            if isinstance(res, Exception):
+                # Checker failed entirely (e.g., OOM, network timeout)
+                # We escalate to HUMAN via a max risk score on this dimension
+                failed_checker_name = self.checkers[i].name
+                results.append(CheckerResult(
+                    checker_name=failed_checker_name,
+                    risk_score=1.0,
+                    explanation=f"FATAL: Checker {failed_checker_name} raised exception during parallel execution: {str(res)}",
+                    flagged_span=None
+                ))
+            else:
+                results.append(res)
+            
+        # 2. Run cost monitor (fast, synchronous)
         cost_result = self.cost_monitor.evaluate(response_text, generation_time_ms, model_tier)
         
         # 3. Detect Overlaps using Interval Merging

@@ -39,6 +39,10 @@ class UseCasePolicy(BaseModel):
     safety_checker_always_judge: bool = False
     bias_checker_always_judge: bool = False
     
+    # Spec 10 Config Knobs
+    pii_tier0_mode: str = "always_full_ner"
+    bias_check_frequency: str = "every_window"
+    
     # Spec 06 Config Knobs
     session_drift_window_size: int = 5
     session_drift_threshold: float = 0.55
