@@ -11,9 +11,9 @@ The current implementation provides a working prototype of a real-time Responsib
 *   **Real-Time Observation:** Intercepts LLM generation requests via an adapter layer.
 *   **Multi-Dimensional Risk Evaluation:** Analyzes responses across four dimensions: Performance, Safety, Bias, and PII leakage. It also monitors token cost and generation time.
 *   **Risk Engine Aggregation:** Combines individual checker scores into a unified `FinalRiskReport`. It is capable of detecting **overlapping risks** (e.g., a text span that is both PII and Biased) and escalating the risk score accordingly.
-*   **Configurable Governance (Policy Layer):** Uses YAML configurations to adjust risk tolerance based on the specific enterprise use-case (e.g., strict thresholds for a customer-facing chatbot vs. relaxed thresholds for internal research).
-*   **Actionable Control:** Interprets the risk report against the active policy to issue a decision: `ALLOW`, `BLOCK`, or `REDACT`.
-*   **Audit Logging:** Durably records every request, response, risk profile, and decision to a local JSONL log for compliance and metrics tracking.
+*   **Configurable Governance (Policy Layer):** Uses YAML configurations to adjust risk tolerance based on the specific enterprise use-case (e.g., strict thresholds for a customer-facing chatbot vs. relaxed thresholds for internal research). Powered by **Conformal Prediction**, providing mathematical guarantees on error rates.
+*   **Actionable Control:** Interprets the risk report against the active policy to issue a 4-tier calibrated decision: `ALLOW`, `MODIFY`, `REGENERATE`, or `HUMAN`.
+*   **Audit Logging:** Durably records every request, response, risk profile, and decision to a local JSONL log for compliance and metrics tracking. It also routes `HUMAN` escalations to a dedicated review queue.
 
 ---
 
@@ -26,7 +26,8 @@ The current implementation provides a working prototype of a real-time Responsib
 *   **Governance & Audit:** The local JSONL audit trail fulfills the requirement for a "clear audit trail behind every decision."
 
 **Partially Achieved:**
-*   **Tiered Responses:** The PS asks if a response should be "blocked, edited, or escalated to a human". Currently, the system supports Blocking, Allowing, and a very naive Redaction (which just returns a static string instead of dynamically rewriting text).
+*   **Tiered Responses:** The system now routes responses into four distinct actions: `ALLOW`, `MODIFY`, `REGENERATE`, and `HUMAN`. However, `MODIFY` currently returns a structured fallback rather than actively employing a micro-repair LLM prompt (which is slated for a future spec).
+*   **Human-in-the-Loop Escalation:** The policy successfully catches severe risks and routes them to a `human_review_queue.jsonl`, but a dedicated Human Review UI dashboard is pending.
 
 ---
 
@@ -34,15 +35,12 @@ The current implementation provides a working prototype of a real-time Responsib
 
 To build a robust, production-ready solution that fully addresses the Round 2 PS, the following areas represent critical gaps that must be solved:
 
-1.  **Intelligent Edit & Modify:** 
-    *   *Current State:* The "REDACT" action replaces the entire response with a static string (`[REDACTED BY POLICY]`). 
-    *   *Required:* Implement a dynamic rewriting layer. If PII is found, the system should use an LLM or intelligent parser to edit out *only* the sensitive data, allowing the rest of the safe response to pass through seamlessly.
-2.  **Human-in-the-Loop Escalation:** 
-    *   *Current State:* The policy engine only decides to Block or Allow/Redact.
-    *   *Required:* Implement a `FLAG_FOR_REVIEW` or `ESCALATE` state. Ambiguous risk scores should route the payload to a human review queue while giving the end-user a "processing" or fallback response.
-3.  **Advanced Detection Logic (Moving Beyond Heuristics):** 
-    *   *Current State:* Detectors use hard-coded Regex and keywords. (See Codebase Explanation below).
-    *   *Required:* Heuristics age quickly and generate massive false positive/negative rates. The system must integrate LLM-as-a-judge (secondary smaller models grading outputs), Embedding/Statistical Anomaly detection, or RAG-based Retrieval Verification to detect hallucinations without ground truth.
+1.  **Intelligent Edit & Modify (Span-Level Repair):** 
+    *   *Current State:* The `MODIFY` action correctly triggers when risk spans cover < 25% of the response text, but it currently returns a fallback string.
+    *   *Required:* Implement a dynamic rewriting layer. The system should use a secondary LLM or intelligent parser to edit out *only* the flagged spans via RAG+micro-repair, allowing the rest of the safe response to pass through seamlessly.
+2.  **Advanced Bias & Safety Checkers:** 
+    *   *Current State:* Performance is handled by SelfCheckGPT and PII by Presidio/Transformers. However, Bias and Safety checkers still rely on static regex and keyword matching.
+    *   *Required:* Integrate LLM-as-a-judge (e.g., G-Eval/RAGAS-style) or statistical anomaly detection for Bias and Safety to eliminate high false-positive rates.
 4.  **Multi-turn Conversation Context:** 
     *   *Current State:* The `orchestrator` evaluates a single response payload in total isolation. 
     *   *Required:* AI agents take actions across multi-turn chats. The system must maintain a rolling context window to detect compounding risks where one questionable output shapes downstream behavior.
@@ -87,16 +85,16 @@ Understanding the underlying logic of the modules is critical, as the current ru
 
 ### `src/checkers/`
 **Purpose:** Individual modules that inspect text for specific risk categories.
-**Logic Used (CRITICAL): 100% Rule-Based (Heuristics).** This logic is highly fragile. It cannot understand nuance, context, sarcasm, or sophisticated prompt injections. A dynamic, model-driven approach (e.g., LLM-as-a-judge, embeddings, ML classifiers) is mandatory for the next phase.
+**Logic Used:** A mix of advanced statistical models and legacy rules. The Performance and PII checkers have been upgraded, but Bias and Safety still require modernization.
 *   **`base.py`**: Defines the `CheckerResult` schema that all checkers must return.
 *   **`pii_checker.py`**:
-    *   **Logic:** Relies on static Regular Expressions (Regex) to detect SSNs, emails, and phone numbers. Fails on edge cases or obfuscated PII (e.g., "my number is 5 five 5...").
+    *   **Logic:** Uses a hybrid Microsoft Presidio pipeline. Combines base regex/checksums with a HuggingFace transformer model (`piiranha-v1`) for unstructured text. Employs context-word boosting to catch obfuscated edge cases (e.g., "my number is 5 five 5...").
 *   **`bias_checker.py`**:
-    *   **Logic:** Uses Regex to find demographic keywords located within 30 characters of a stereotypical phrase (e.g., "women" + "are typically"). Fails to detect implicit bias or dog-whistles.
+    *   **Logic:** Uses Regex to find demographic keywords located within 30 characters of a stereotypical phrase (e.g., "women" + "are typically"). Fails to detect implicit bias or dog-whistles. *(Pending Upgrade)*
 *   **`safety_checker.py`**:
-    *   **Logic:** Uses basic substring matching against a hard-coded array of unsafe keywords (e.g., "kill", "bomb"). Will aggressively over-flag innocent queries (e.g., "kill a background process").
+    *   **Logic:** Uses basic substring matching against a hard-coded array of unsafe keywords (e.g., "kill", "bomb"). Will aggressively over-flag innocent queries (e.g., "kill a background process"). *(Pending Upgrade)*
 *   **`performance_checker.py`**:
-    *   **Logic:** Looks for hard-coded hedging phrases (e.g., "I am not sure") and naive contradiction patterns (e.g., "is...but...not"). Fails to detect high-confidence hallucinations.
+    *   **Logic:** Uses a Zero-Resource hallucination detector based on **SelfCheckGPT**. It samples the LLM multiple times and measures structural consistency via NLI (Natural Language Inference) and BERTScore to calculate uncertainty. Highly robust.
 
 ### `src/cost/`
 **Purpose:** Monitors generation metrics to prevent budget burns.
@@ -114,14 +112,14 @@ Understanding the underlying logic of the modules is critical, as the current ru
 **Purpose:** The central nervous system of ControlPlane-AI.
 *   **`pipeline.py`**:
     *   **Purpose:** Executes the end-to-end flow. 
-    *   **Logic:** **Synchronous Procedural Flow.** 1) Fetches LLM response via adapter. 2) Passes it to `RiskEngine`. 3) Gets decision from `ControlPolicy`. 4) Logs to `AuditLogger`. 5) Returns final output. It handles extreme failures by injecting a synthetic "SYSTEM EXCEPTION" block decision.
+    *   **Logic:** **Synchronous Procedural Flow.** 1) Fetches LLM response via adapter. 2) Passes it to `RiskEngine`. 3) Gets 4-tier decision from `ControlPolicy`. 4) Logs to `AuditLogger`. 5) Returns final output. It handles extreme failures by injecting a synthetic "SYSTEM EXCEPTION" block decision.
 
 ### `src/policy/`
 **Purpose:** The governance configuration and enforcement layer.
 *   **`schemas.py`**: Defines Pydantic data models for `UseCasePolicy` and `ControlDecision`.
 *   **`control_policy.py`**:
     *   **Purpose:** The decision-maker. Compares the `FinalRiskReport` against the use-case configuration.
-    *   **Logic:** **Deterministic Threshold Comparison.** It iterates through checker scores (`if score > threshold`). It forces a `BLOCK` if thresholds are exceeded, or an overlap is forbidden.
+    *   **Logic:** **Conformal-Prediction-Calibrated Tiered Routing.** Instead of arbitrary thresholds, it uses statistically derived bounds (`tau_low`, `tau_high`) to guarantee error limits. It evaluates span coverage density to decide between targeted `MODIFY` (<25% coverage) or full `REGENERATE` (>25% coverage), and immediately escalates high risks to `HUMAN`.
 
 ### `src/ui/`
 **Purpose:** Static frontend dashboard.
