@@ -34,6 +34,10 @@ class UseCasePolicy(BaseModel):
     alpha_high: float = 0.01
     modify_span_threshold_pct: float = 25.0
     calibrated_thresholds: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+    
+    # Spec 04 Config Knobs
+    safety_checker_always_judge: bool = False
+    bias_checker_always_judge: bool = False
 
 class ControlDecision(BaseModel):
     """
