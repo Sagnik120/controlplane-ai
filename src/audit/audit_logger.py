@@ -40,6 +40,12 @@ class AuditLogger:
             with open(self.log_file, "a") as f:
                 f.write(json.dumps(log_entry) + "\n")
                 
+            # Spec 03: If escalated to HUMAN, append to review queue
+            if decision.action == "HUMAN":
+                queue_file = os.path.join(os.path.dirname(self.log_file), "human_review_queue.jsonl")
+                with open(queue_file, "a") as f:
+                    f.write(json.dumps(log_entry) + "\n")
+                
             return True
             
         except Exception as e:
