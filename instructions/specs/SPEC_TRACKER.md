@@ -14,7 +14,7 @@ Legend: `[ ]` not started · `[~]` spec written, not yet coded · `[x]` coded + 
 
 ## Batch 4 — Aggregation & Session Layer
 - [x] `SPEC_05_overlap_aware_risk_engine.md`
-- [~] `SPEC_06_multiturn_context_window.md`
+- [x] `SPEC_06_multiturn_context_window.md`
 
 ## Batch 5 — Governance Loop (ALL SPECS NOW WRITTEN)
 - [~] `SPEC_07_feedback_loop_active_learning.md`
