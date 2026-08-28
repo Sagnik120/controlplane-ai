@@ -17,7 +17,7 @@ Legend: `[ ]` not started · `[~]` spec written, not yet coded · `[x]` coded + 
 - [x] `SPEC_06_multiturn_context_window.md`
 
 ## Batch 5 — Governance Loop (ALL SPECS NOW WRITTEN)
-- [~] `SPEC_07_feedback_loop_active_learning.md`
+- [x] `SPEC_07_feedback_loop_active_learning.md`
   Reuses SPEC_03's conformal calibration script; harvests human-reviewed queue items into a
   growing calibration set; recalibrates thresholds periodically with a before/after audit trail.
 - [~] `SPEC_08_intelligent_edit_repair.md`
