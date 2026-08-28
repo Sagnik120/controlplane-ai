@@ -16,7 +16,7 @@ class PipelineOrchestrator:
         self.control_policy = control_policy
         self.audit_logger = audit_logger
         
-    def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous") -> str:
+    def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous") -> dict:
         """
         Synchronous wrapper for processing a request End-to-End.
         """
@@ -46,11 +46,17 @@ class PipelineOrchestrator:
             
             # 5. Return Output
             if decision.action == "ALLOW":
-                return llm_output
+                final_text = llm_output
             elif decision.action == "REDACT":
-                return f"[REDACTED BY POLICY] Original response contained sensitive data (Action: REDACT)."
+                final_text = f"[REDACTED BY POLICY] Original response contained sensitive data (Action: REDACT)."
             else: # BLOCK
-                return f"[BLOCKED BY POLICY] {decision.rationale}"
+                final_text = f"[BLOCKED BY POLICY] {decision.rationale}"
+                
+            return {
+                "final_output": final_text,
+                "risk_report": report.model_dump(),
+                "control_decision": decision.model_dump()
+            }
                 
         except Exception as e:
             # Extreme Edge Case Handling: Total Pipeline Failure
@@ -72,4 +78,8 @@ class PipelineOrchestrator:
                 metadata={"user_id": user_id, "prompt_length": len(prompt), "exception": error_msg}
             )
             
-            return f"[SYSTEM ERROR] Unable to process request safely. Fallback block executed."
+            return {
+                "final_output": f"[SYSTEM ERROR] Unable to process request safely. Fallback block executed.",
+                "risk_report": synthetic_report.model_dump(),
+                "control_decision": synthetic_decision.model_dump()
+            }

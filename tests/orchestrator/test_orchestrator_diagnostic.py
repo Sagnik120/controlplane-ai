@@ -86,7 +86,8 @@ def run_diagnostic():
         print(f"\n--- {case['name']} ---")
         print(f"Prompt: '{case['prompt']}'")
         
-        final_output = case['orchestrator'].process_request(case['prompt'], case['policy'])
+        response_dict = case['orchestrator'].process_request(case['prompt'], case['policy'])
+        final_output = response_dict["final_output"]
         print(f"Final E2E Output: {final_output}")
         
         if case['expected_snippet'] in final_output:
