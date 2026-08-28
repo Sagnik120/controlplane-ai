@@ -1,9 +1,11 @@
+from typing import Optional
 from src.adapters.base_adapter import BaseLLMAdapter
 from src.engine.risk_engine import RiskEngine, FinalRiskReport
 from src.policy.control_policy import ControlPolicy
 from src.policy.schemas import UseCasePolicy, ControlDecision
 from src.audit.audit_logger import AuditLogger
 from src.checkers.base import CheckerResult
+from src.session.session_state import SessionStore
 
 class PipelineOrchestrator:
     """
@@ -15,8 +17,9 @@ class PipelineOrchestrator:
         self.risk_engine = risk_engine
         self.control_policy = control_policy
         self.audit_logger = audit_logger
+        self.session_store = SessionStore()
         
-    def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous") -> dict:
+    def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None) -> dict:
         """
         Synchronous wrapper for processing a request End-to-End.
         """
@@ -38,18 +41,35 @@ class PipelineOrchestrator:
                 policy=policy
             )
             
-            # 3. Control Policy Decision (Spec 03: Conformal Tiered Routing)
-            decision = self.control_policy.evaluate(report, policy, response_text=llm_output)
+            # 3. Session State Update (Spec 06)
+            session_state = None
+            if session_id:
+                session_state = self.session_store.update(
+                    session_id=session_id,
+                    user_text=prompt, # Evaluate drift on the user prompt
+                    checker_results=report.checker_results,
+                    drift_window=policy.session_drift_window_size,
+                    require_monotonic=policy.session_require_monotonic_trend
+                )
             
-            # 4. Audit Log
+            # 4. Control Policy Decision (Spec 03 + Spec 06)
+            decision = self.control_policy.evaluate(report, policy, response_text=llm_output, session_state=session_state)
+            
+            # 5. Audit Log
+            metadata = {"user_id": user_id, "prompt_length": len(prompt)}
+            if session_id and session_state:
+                metadata["session_id"] = session_id
+                metadata["semantic_drift_score"] = session_state.semantic_drift_score
+                metadata["cumulative_pii_exposure_score"] = session_state.cumulative_pii_exposure_score
+                
             self.audit_logger.log(
                 response_text=llm_output,
                 report=report,
                 decision=decision,
-                metadata={"user_id": user_id, "prompt_length": len(prompt)}
+                metadata=metadata
             )
             
-            # 5. Return Output
+            # 6. Return Output
             if decision.action == "ALLOW":
                 final_text = llm_output
             elif decision.action == "REDACT":
@@ -82,11 +102,15 @@ class PipelineOrchestrator:
             )
             synthetic_decision = ControlDecision(action="BLOCK", reasoning="BLOCKED DUE TO SYSTEM EXCEPTION")
             
+            metadata = {"user_id": user_id, "prompt_length": len(prompt), "exception": error_msg}
+            if session_id:
+                metadata["session_id"] = session_id
+                
             self.audit_logger.log(
                 response_text=llm_output if llm_output else "FAILED BEFORE GENERATION",
                 report=synthetic_report,
                 decision=synthetic_decision,
-                metadata={"user_id": user_id, "prompt_length": len(prompt), "exception": error_msg}
+                metadata=metadata
             )
             
             return {

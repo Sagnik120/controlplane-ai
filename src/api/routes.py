@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+import uuid
 
 from .dependencies import get_orchestrator, get_policy, POLICIES
 from src.orchestrator.pipeline import PipelineOrchestrator
@@ -11,6 +12,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     prompt: str
     policy_id: str = "standard"
+    session_id: Optional[str] = None
 
 @router.get("/policies")
 def get_available_policies():
@@ -37,7 +39,12 @@ def chat(request: ChatRequest, orchestrator: PipelineOrchestrator = Depends(get_
         
     policy = get_policy(request.policy_id)
     
+    session_id = request.session_id if request.session_id else str(uuid.uuid4())
+    
     # Process the request end-to-end
-    result_dict = orchestrator.process_request(prompt=request.prompt, policy=policy, user_id="demo_user")
+    result_dict = orchestrator.process_request(prompt=request.prompt, policy=policy, user_id="demo_user", session_id=session_id)
+    
+    # Return session_id to client so they can maintain session
+    result_dict["session_id"] = session_id
     
     return result_dict

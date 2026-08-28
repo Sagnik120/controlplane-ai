@@ -38,6 +38,13 @@ class UseCasePolicy(BaseModel):
     # Spec 04 Config Knobs
     safety_checker_always_judge: bool = False
     bias_checker_always_judge: bool = False
+    
+    # Spec 06 Config Knobs
+    session_drift_window_size: int = 5
+    session_drift_threshold: float = 0.55
+    session_require_monotonic_trend: bool = True
+    session_cumulative_pii_threshold: int = 3
+    session_escalation_action: str = "HUMAN"
 
 class ControlDecision(BaseModel):
     """

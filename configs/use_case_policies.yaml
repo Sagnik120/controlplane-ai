@@ -28,6 +28,11 @@ customer_support_chatbot:
   modify_span_threshold_pct: 25.0
   safety_checker_always_judge: false
   bias_checker_always_judge: false
+  session_drift_window_size: 5
+  session_drift_threshold: 0.55
+  session_require_monotonic_trend: true
+  session_cumulative_pii_threshold: 3
+  session_escalation_action: HUMAN
   calibrated_thresholds:
     performance:
       tau_low: 0.914
@@ -67,6 +72,11 @@ internal_knowledge_assistant:
   modify_span_threshold_pct: 40.0
   safety_checker_always_judge: true
   bias_checker_always_judge: true
+  session_drift_window_size: 5
+  session_drift_threshold: 0.55
+  session_require_monotonic_trend: true
+  session_cumulative_pii_threshold: 3
+  session_escalation_action: HUMAN
   calibrated_thresholds:
     performance:
       tau_low: 0.829

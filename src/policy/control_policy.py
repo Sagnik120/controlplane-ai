@@ -1,5 +1,7 @@
+from typing import Optional, Any
 from src.engine.risk_engine import FinalRiskReport
 from src.policy.schemas import UseCasePolicy, ControlDecision
+from src.session.session_state import SessionRiskState
 
 class ControlPolicy:
     """
@@ -7,7 +9,7 @@ class ControlPolicy:
     using Conformal-Prediction-Calibrated Tiered Routing.
     """
     
-    def evaluate(self, report: FinalRiskReport, policy: UseCasePolicy, response_text: str = "") -> ControlDecision:
+    def evaluate(self, report: FinalRiskReport, policy: UseCasePolicy, response_text: str = "", session_state: Optional[SessionRiskState] = None) -> ControlDecision:
         # Load calibrated thresholds
         thresholds = policy.calibrated_thresholds
         
@@ -81,18 +83,33 @@ class ControlPolicy:
             else:
                 action = "REGENERATE"
                 
-        # 4. Construct response
-        if action == "ALLOW":
-            reasoning = "ALLOW: Request passed all calibrated thresholds."
-        elif action == "HUMAN":
-            reasoning = (f"HUMAN ESCALATION: {triggering_dim.capitalize()} risk score ({triggering_score}) "
-                         f"exceeded calibrated τ_high={active_tau_high} (α_high={policy.alpha_high}).")
-        elif action == "MODIFY":
-            reasoning = (f"MODIFY: {triggering_dim.capitalize()} risk score ({triggering_score}) "
-                         f"exceeded τ_low={active_tau_low}. Localized spans detected for repair.")
-        else: # REGENERATE
-            reasoning = (f"REGENERATE: {triggering_dim.capitalize()} risk score ({triggering_score}) "
-                         f"exceeded τ_low={active_tau_low}. Issues are too diffuse to modify in-place.")
+        reasoning = ""
+        # 4. Check Session Signals (SPEC 06 Override)
+        if session_state and action != "HUMAN":
+            if session_state.cumulative_pii_exposure_score >= policy.session_cumulative_pii_threshold:
+                action = policy.session_escalation_action
+                triggering_dim = "session_cumulative_pii"
+                triggering_score = session_state.cumulative_pii_exposure_score
+                reasoning = (f"{action}: Cumulative PII Exposure ({triggering_score}) exceeded session limit of {policy.session_cumulative_pii_threshold}.")
+            elif session_state.semantic_drift_score >= policy.session_drift_threshold:
+                action = policy.session_escalation_action
+                triggering_dim = "session_semantic_drift"
+                triggering_score = session_state.semantic_drift_score
+                reasoning = (f"{action}: Semantic Drift ({triggering_score}) exceeded session limit of {policy.session_drift_threshold}.")
+
+        # 5. Construct response if not already set by session overrides
+        if not reasoning:
+            if action == "ALLOW":
+                reasoning = "ALLOW: Request passed all calibrated thresholds."
+            elif action == "HUMAN":
+                reasoning = (f"HUMAN ESCALATION: {triggering_dim.capitalize()} risk score ({triggering_score}) "
+                             f"exceeded calibrated τ_high={active_tau_high} (α_high={policy.alpha_high}).")
+            elif action == "MODIFY":
+                reasoning = (f"MODIFY: {triggering_dim.capitalize()} risk score ({triggering_score}) "
+                             f"exceeded τ_low={active_tau_low}. Localized spans detected for repair.")
+            elif action == "REGENERATE":
+                reasoning = (f"REGENERATE: {triggering_dim.capitalize()} risk score ({triggering_score}) "
+                             f"exceeded τ_low={active_tau_low}. Issues are too diffuse to modify in-place.")
                          
         calibration_meta = {
             "alpha_low": policy.alpha_low,
@@ -101,7 +118,7 @@ class ControlPolicy:
             "tau_high_used": active_tau_high,
             "triggering_score": triggering_score,
             "calibration_n": getattr(policy, "calibration_n", 64)
-        } if triggering_dim else None
+        } if triggering_dim and not triggering_dim.startswith("session_") else None
 
         return ControlDecision(
             action=action,
