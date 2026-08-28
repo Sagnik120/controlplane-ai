@@ -52,12 +52,15 @@ class RiskEngine:
                     return True
         return False
 
-    def evaluate_response(self, response_text: str, generation_time_ms: int = 0, model_tier: str = "standard") -> FinalRiskReport:
+    def evaluate_response(self, response_text: str, generation_time_ms: int = 0, model_tier: str = "standard", prompt: str = "", adapter=None, policy=None) -> FinalRiskReport:
         results = []
         
         # 1. Run standard checkers
         for checker in self.checkers:
-            results.append(checker.evaluate(response_text))
+            if checker.name in ["performance", "bias", "safety"]:
+                results.append(checker.evaluate(response_text, prompt=prompt, adapter=adapter, policy=policy))
+            else:
+                results.append(checker.evaluate(response_text))
             
         # 2. Run cost monitor
         results.append(self.cost_monitor.evaluate(response_text, generation_time_ms, model_tier))

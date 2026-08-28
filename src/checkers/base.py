@@ -16,3 +16,7 @@ class CheckerResult(BaseModel):
     confidence: Optional[float] = None
     method: Optional[str] = None
     entities: List[Dict[str, Any]] = Field(default_factory=list)
+    
+    # Extended fields for LLM-as-a-judge checkers (Bias, Safety)
+    judge_category: Optional[str] = None
+    judge_severity: Optional[str] = None
