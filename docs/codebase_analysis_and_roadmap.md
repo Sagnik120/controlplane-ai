@@ -10,6 +10,7 @@ The hackathon challenged us to build a **Responsible AI Checker** that monitors 
 3. **Overlapping Risks**: The `RiskEngine` explicitly flags when multiple dimensions overlap and can escalate severity based on that intersection.
 4. **Multi-turn Compounding Risk**: `SessionRiskState` tracks Semantic Drift (is the user slowly jailbreaking the agent?) and Cumulative PII Exposure over multi-turn interactions.
 5. **Real-time Intelligent Repair**: `SpanRepairEngine` surgically splices *only* the broken sentence using LLM micro-editing or Presidio anonymization, re-verifying the patch before release.
+6. **Checkpoint-Backtrack Resampling (CBR)**: For severe hallucinations, the pipeline backtracks to a safe checkpoint and uses a Chain-of-Verification (Diagnose → Verify → Resample) loop to rewrite the text without repeating the hallucination.
 
 ---
 
@@ -28,10 +29,10 @@ This section details exactly how each `.py` file is connected, what the underlyi
 - **Files**: `base.py`, `performance_checker.py`, `pii_checker.py`, `safety_bias_checker.py`
 - **Connections**: Instantiated by `src/engine/risk_engine.py`.
 - **Implementation Detail**:
-  - `performance_checker.py`: Uses the **SelfCheckGPT** framework via HuggingFace `sentence-transformers` and the `evaluate` library. It detects hallucinations by asking the LLM to generate 3 additional stochastic samples, then uses Natural Language Inference (NLI) and BERTScore to measure consistency. **SOTA ML.**
+  - `performance_checker.py`: Uses the **SelfCheckGPT** framework via HuggingFace `sentence-transformers` and the `evaluate` library. It detects hallucinations by asking the LLM to generate 3 additional stochastic samples, then uses Natural Language Inference (NLI) and BERTScore to measure consistency. It also includes a Tier-0 heuristic gate to bypass expensive ML checks for short/confident inputs. **SOTA ML.**
   - `pii_checker.py`: Combines Microsoft Presidio with a HuggingFace NER pipeline (`iiiorg/piiranha-v1-detect-personal-information`). It uses a Noisy-OR aggregator ($1 - \prod(1 - p_i)$) to combine risk scores. **SOTA Hybrid (ML + Rules).**
   - `safety_bias_checker.py`: Uses the `unitary/toxic-bert` model pipeline. **ML Baseline.**
-- **Harsh Reality**: `performance_checker.py` is computationally massive. Running NLI and BERTScore across multiple LLM samples takes multiple seconds. It is mathematically SOTA for hallucination detection, but completely unviable for a low-latency inline proxy without dedicated, heavily optimized GPU infrastructure. 
+- **Harsh Reality**: `performance_checker.py` is computationally massive. While the new Tier-0 gate mitigates this for simple text, running NLI and BERTScore across multiple LLM samples takes multiple seconds when triggered. It is mathematically SOTA for hallucination detection, but completely unviable for a low-latency inline proxy without dedicated, heavily optimized GPU infrastructure. 
 
 ### 2.3 `src/engine/`
 - **Files**: `risk_engine.py`
@@ -70,10 +71,17 @@ This section details exactly how each `.py` file is connected, what the underlyi
 
 ### 2.8 `src/orchestrator/`
 - **Files**: `pipeline.py`
-- **Connections**: Connects `adapters`, `risk_engine`, `session_state`, `control_policy`, `span_repair`, and `audit_logger`.
-- **Implementation Detail**: The central loop. Generates LLM response -> Runs Risk Engine -> Updates Session State -> Evaluates Control Policy -> **(If MODIFY)** Splices repaired text and *re-verifies* the new text through the Risk Engine -> Logs to Audit -> Returns final Output.
+- **Connections**: Connects `adapters`, `risk_engine`, `session_state`, `control_policy`, `span_repair`, `RegenerationEngine`, and `audit_logger`.
+- **Implementation Detail**: The central loop. Generates LLM response -> Runs Risk Engine -> Updates Session State -> Evaluates Control Policy. **(If MODIFY)** Splices repaired text and *re-verifies*. **(If REGENERATE)** Hands off to RegenerationEngine for backtracking. -> Logs to Audit -> Returns final Output.
 - **SOTA vs Rule-Based**: The *routing flow* is a **SOTA Architectural Pattern** for safe AI.
-- **Harsh Reality**: The code is completely synchronous. A single user request blocks the entire Python thread for the duration of generation, checking, repairing, and re-checking.
+- **Harsh Reality**: The code is completely synchronous. A single user request blocks the entire Python thread for the duration of generation, checking, repairing, regenerating, and re-checking.
+
+### 2.9 `src/regenerate/`
+- **Files**: `checkpoint_backtrack.py`
+- **Connections**: Instantiated and called by `src/orchestrator/pipeline.py`.
+- **Implementation Detail**: Implements the CheckpointManager and RegenerationEngine (CBR). When the ControlPolicy triggers REGENERATE, it backtracks to a safe streaming checkpoint and executes a Chain-of-Verification (Diagnose → Verify → Resample) loop to rewrite the flawed text without repeating hallucinations.
+- **SOTA vs Rule-Based**: **SOTA Architectural Pattern (CoVe / CBR)**.
+- **Harsh Reality**: While mathematically sound and highly effective at preventing stubborness loops, executing up to 3 extra prompt generations inside a synchronous loop exponentially exacerbates the latency bottleneck if the LLM provider is slow.
 
 ---
 
@@ -85,10 +93,11 @@ Yes. From an architectural and conceptual standpoint, we built exactly what was 
 - We solved dynamic risk tolerance (Conformal Prediction).
 - We solved alert fatigue (Intelligent Edit & Repair instead of hard blocking).
 - We solved multi-turn complexity (Semantic Drift Tracking).
+- We solved irrecoverable hallucinations (Checkpoint-Backtrack Resampling).
 
 **The Unfiltered Reality of the Prototype:**
 While the *logic* is state-of-the-art, the *infrastructure* is purely a hackathon mock-up.
-1. **Latency is currently fatal**: Because we used `SelfCheckGPT` (requiring multiple LLM generation calls for hallucination detection) and execute everything synchronously, the time-to-first-token is destroyed. An inline proxy must be virtually invisible to the user. This architecture would add multiple seconds of latency to every request.
+1. **Latency is currently fatal**: Because we used `SelfCheckGPT` (requiring multiple LLM generation calls for hallucination detection) and execute everything synchronously, the time-to-first-token is destroyed. While the new Tier-0 gate mitigates this for simple requests, triggering a full CBR loop adds multiple seconds of latency to every request.
 2. **State Management is ephemeral**: Using JSONL files for audit/feedback and in-memory Python dictionaries for multi-turn sessions means this codebase cannot survive concurrent production traffic. It needs Redis, Postgres, and async task queues.
 3. **Splicing is fragile**: We are using naive `str.replace` to splice the repaired text back into the LLM output, which relies on the LLM outputting the exact string flawlessly.
 
