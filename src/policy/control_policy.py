@@ -3,51 +3,110 @@ from src.policy.schemas import UseCasePolicy, ControlDecision
 
 class ControlPolicy:
     """
-    Takes a FinalRiskReport and a UseCasePolicy, and determines the final ControlDecision.
+    Takes a FinalRiskReport and a UseCasePolicy, and determines the final ControlDecision
+    using Conformal-Prediction-Calibrated Tiered Routing.
     """
     
-    def evaluate(self, report: FinalRiskReport, policy: UseCasePolicy) -> ControlDecision:
-        # 1. Check strict checker-specific thresholds first
+    def evaluate(self, report: FinalRiskReport, policy: UseCasePolicy, response_text: str = "") -> ControlDecision:
+        # Load calibrated thresholds
+        thresholds = policy.calibrated_thresholds
+        
+        highest_severity = "ALLOW"
+        triggering_dim = None
+        triggering_score = 0.0
+        active_tau_low = 1.0
+        active_tau_high = 1.0
+        
+        spans = []
+        
+        # 1. Check each dimension against its calibrated thresholds
         for checker_result in report.checker_results:
-            checker_name = checker_result.checker_name
+            dim = checker_result.checker_name
             score = checker_result.risk_score
             
-            # If the policy defines a specific threshold for this checker, use it. 
-            # Otherwise fallback to 1.0 (meaning only the global overall_risk_score applies)
-            threshold = policy.checker_thresholds.get(checker_name, 1.0)
+            # Default uncalibrated thresholds if not present
+            tau_low = thresholds.get(dim, {}).get("tau_low", policy.max_overall_risk)
+            tau_high = thresholds.get(dim, {}).get("tau_high", 1.0)
             
-            if score > threshold:
-                return ControlDecision(
-                    action="BLOCK",
-                    rationale=f"BLOCKED: {checker_name.capitalize()} risk score ({score}) exceeds use-case threshold ({threshold})."
-                )
+            severity = "ALLOW"
+            if score >= tau_high:
+                severity = "HUMAN"
+            elif score >= tau_low:
+                severity = "NEEDS_REPAIR"
                 
-        # 2. Check Overlap policy
-        if report.overlap_detected and policy.block_on_overlap:
-            return ControlDecision(
-                action="BLOCK",
-                rationale=f"BLOCKED: Policy forbids overlapping risk spans. {report.overlap_explanation}"
-            )
-            
-        # 3. Check Global Overall Risk
-        if report.overall_risk_score > policy.max_overall_risk:
-            return ControlDecision(
-                action="BLOCK",
-                rationale=f"BLOCKED: Overall risk score ({report.overall_risk_score}) exceeds global threshold ({policy.max_overall_risk})."
-            )
-            
-        # 4. Check Redact flag
-        if policy.redact_pii:
-            # Look to see if PII was flagged but didn't hit a block threshold
-            for checker_result in report.checker_results:
-                if checker_result.checker_name == "pii" and checker_result.risk_score > 0.0:
-                    return ControlDecision(
-                        action="REDACT",
-                        rationale="REDACT: PII detected and redaction policy is active."
-                    )
+            # Promote severity
+            if severity == "HUMAN":
+                highest_severity = "HUMAN"
+                triggering_dim = dim
+                triggering_score = score
+                active_tau_low = tau_low
+                active_tau_high = tau_high
+                break # HUMAN is max severity, we can short-circuit
+            elif severity == "NEEDS_REPAIR" and highest_severity == "ALLOW":
+                highest_severity = "NEEDS_REPAIR"
+                triggering_dim = dim
+                triggering_score = score
+                active_tau_low = tau_low
+                active_tau_high = tau_high
+                
+            # Collect spans for repair estimation
+            if severity != "ALLOW":
+                if getattr(checker_result, 'entities', None):
+                    spans.extend(checker_result.entities)
+                elif getattr(checker_result, 'sentence_scores', None):
+                    # For performance checker
+                    for s in checker_result.sentence_scores:
+                        if s.get("score", 0.0) >= tau_low:
+                            spans.append({"text": s.get("sentence", "")})
+                elif getattr(checker_result, 'flagged_span', None):
+                    spans.append({"text": checker_result.flagged_span})
                     
-        # 5. Default Allow
+        # 2. Check Overlap policy (legacy support)
+        if report.overlap_detected and policy.block_on_overlap and highest_severity == "ALLOW":
+            highest_severity = "NEEDS_REPAIR"
+            triggering_dim = "overlap"
+            
+        # 3. Resolve NEEDS_REPAIR into MODIFY or REGENERATE
+        action = highest_severity
+        target_spans = None
+        if action == "NEEDS_REPAIR":
+            total_len = len(response_text) if response_text else 100
+            span_len = sum(len(s.get("text", "")) for s in spans) if spans else 0
+            
+            coverage_pct = (span_len / total_len) * 100 if total_len > 0 else 100
+            
+            if coverage_pct < policy.modify_span_threshold_pct and spans:
+                action = "MODIFY"
+                target_spans = spans
+            else:
+                action = "REGENERATE"
+                
+        # 4. Construct response
+        if action == "ALLOW":
+            reasoning = "ALLOW: Request passed all calibrated thresholds."
+        elif action == "HUMAN":
+            reasoning = (f"HUMAN ESCALATION: {triggering_dim.capitalize()} risk score ({triggering_score}) "
+                         f"exceeded calibrated τ_high={active_tau_high} (α_high={policy.alpha_high}).")
+        elif action == "MODIFY":
+            reasoning = (f"MODIFY: {triggering_dim.capitalize()} risk score ({triggering_score}) "
+                         f"exceeded τ_low={active_tau_low}. Localized spans detected for repair.")
+        else: # REGENERATE
+            reasoning = (f"REGENERATE: {triggering_dim.capitalize()} risk score ({triggering_score}) "
+                         f"exceeded τ_low={active_tau_low}. Issues are too diffuse to modify in-place.")
+                         
+        calibration_meta = {
+            "alpha_low": policy.alpha_low,
+            "alpha_high": policy.alpha_high,
+            "tau_low_used": active_tau_low,
+            "tau_high_used": active_tau_high,
+            "triggering_score": triggering_score,
+            "calibration_n": getattr(policy, "calibration_n", 64)
+        } if triggering_dim else None
+
         return ControlDecision(
-            action="ALLOW",
-            rationale="ALLOW: Request passed all use-case policy thresholds."
+            action=action,
+            triggering_dimension=triggering_dim,
+            calibration_metadata=calibration_meta,
+            target_spans=target_spans,
+            reasoning=reasoning
         )

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, Literal, Optional
+from typing import Dict, Literal, Optional, Any
 
 class UseCasePolicy(BaseModel):
     """
@@ -28,10 +28,19 @@ class UseCasePolicy(BaseModel):
     # Spec 02 Config Knobs
     pii_entity_allowlist: Optional[list] = None
     pii_min_confidence: float = 0.5
+    
+    # Spec 03 Config Knobs (Conformal Calibration)
+    alpha_low: float = 0.05
+    alpha_high: float = 0.01
+    modify_span_threshold_pct: float = 25.0
+    calibrated_thresholds: Dict[str, Dict[str, float]] = Field(default_factory=dict)
 
 class ControlDecision(BaseModel):
     """
     The final output of the ControlPolicy module.
     """
-    action: Literal["ALLOW", "BLOCK", "REDACT"]
-    rationale: str
+    action: Literal["ALLOW", "MODIFY", "REGENERATE", "HUMAN", "BLOCK", "REDACT"]
+    triggering_dimension: Optional[str] = None
+    calibration_metadata: Optional[Dict[str, Any]] = None
+    target_spans: Optional[list] = None
+    reasoning: str
