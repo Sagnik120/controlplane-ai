@@ -1,28 +1,52 @@
 customer_support_chatbot:
   name: customer_support_chatbot
-  description: "Customer facing bot, latency sensitive"
+  description: Customer facing bot, latency sensitive
   max_overall_risk: 0.8
   checker_thresholds:
-    performance: 0.60
-    safety: 0.30
-    bias: 0.50
-    pii: 0.40
+    performance: 0.6
+    safety: 0.3
+    bias: 0.5
+    pii: 0.4
   block_on_overlap: true
   redact_pii: true
   performance_n_samples: 2
   performance_sampling_temperature: 1.0
   performance_nli_weight: 0.7
   performance_bertscore_weight: 0.3
-  pii_entity_allowlist: ["EMAIL", "EMAIL_ADDRESS", "PHONE_NUMBER", "PHONE", "CREDIT_CARD", "SSN", "US_SSN", "PERSON"]
+  pii_entity_allowlist:
+  - EMAIL
+  - EMAIL_ADDRESS
+  - PHONE_NUMBER
+  - PHONE
+  - CREDIT_CARD
+  - SSN
+  - US_SSN
+  - PERSON
   pii_min_confidence: 0.6
-
+  alpha_low: 0.05
+  alpha_high: 0.01
+  modify_span_threshold_pct: 25.0
+  calibrated_thresholds:
+    performance:
+      tau_low: 0.914
+      tau_high: 0.969
+    safety:
+      tau_low: 0.916
+      tau_high: 0.949
+    bias:
+      tau_low: 0.974
+      tau_high: 0.986
+    pii:
+      tau_low: 0.924
+      tau_high: 0.98
+  calibration_n: 64
 internal_knowledge_assistant:
   name: internal_knowledge_assistant
-  description: "Internal bot, favors accuracy over latency"
+  description: Internal bot, favors accuracy over latency
   max_overall_risk: 0.7
   checker_thresholds:
-    performance: 0.40
-    safety: 0.20
+    performance: 0.4
+    safety: 0.2
     bias: 0.35
     pii: 0.25
   block_on_overlap: true
@@ -31,5 +55,25 @@ internal_knowledge_assistant:
   performance_sampling_temperature: 1.0
   performance_nli_weight: 0.7
   performance_bertscore_weight: 0.3
-  pii_entity_allowlist: ["SSN", "US_SSN", "CREDIT_CARD"]
+  pii_entity_allowlist:
+  - SSN
+  - US_SSN
+  - CREDIT_CARD
   pii_min_confidence: 0.75
+  alpha_low: 0.15
+  alpha_high: 0.05
+  modify_span_threshold_pct: 40.0
+  calibrated_thresholds:
+    performance:
+      tau_low: 0.829
+      tau_high: 0.914
+    safety:
+      tau_low: 0.826
+      tau_high: 0.916
+    bias:
+      tau_low: 0.844
+      tau_high: 0.974
+    pii:
+      tau_low: 0.885
+      tau_high: 0.924
+  calibration_n: 64
