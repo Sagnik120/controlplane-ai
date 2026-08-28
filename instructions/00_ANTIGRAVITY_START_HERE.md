@@ -57,3 +57,12 @@ do not deviate from it without stopping to ask me first.
   per the stop-and-ask conditions in `03_Rules.md` — do not guess silently.
 
 Confirm you've read everything, then begin.
+
+
+
+## If resuming a session where Phases 0-9 are already DONE (check docs/progress.md first)
+
+Do not restart Phase 0. Instead:
+12. Read `instructions/00B_SPEC_UPGRADES.md` in full — this governs the current stage of work.
+13. Read `instructions/specs/SPEC_TRACKER.md` — this tells you exactly which spec file to open next.
+14. Open ONLY that one spec file and follow it. Do not touch `04_Phases.md` items again.

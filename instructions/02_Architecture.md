@@ -156,6 +156,14 @@ use_cases:
       cost_risk: 0.90
     human_escalation_threshold: 0.40
 ```
+## 4B. Note on Internal Detection Logic (post-Phase-9)
+
+The Checkers, Risk Engine aggregation, and Control Policy thresholds described above define the
+*shape* of the pipeline (interfaces, data contracts, folder ownership) — this remains fixed. Their
+*internal detection method* (e.g. regex vs. NLI-based hallucination detection) is upgraded
+incrementally per `instructions/specs/SPEC_TRACKER.md` and is expected to diverge from a literal
+reading of "heuristic" language elsewhere in this doc. When in doubt, the active spec file wins for
+internal method; this file wins for interfaces/data contracts/folder structure.
 
 ## 6. Audit Log Record Schema (place logic at `src/audit/logger.py`)
 

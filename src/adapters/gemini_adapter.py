@@ -1,5 +1,6 @@
 import os
 from google import genai
+from google.genai import types
 from typing import Iterator
 from .base_adapter import BaseLLMAdapter
 
@@ -32,3 +33,14 @@ class GeminiAdapter(BaseLLMAdapter):
             # Provide a fallback error chunk so the stream doesn't crash silently
             yield f"[Error generating response from Gemini: {str(e)}]"
 
+    def generate_once(self, prompt: str, temperature: float = 1.0) -> str:
+        try:
+            config = types.GenerateContentConfig(temperature=temperature)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=config
+            )
+            return response.text if response.text else ""
+        except Exception as e:
+            return f"[Error generating response from Gemini: {str(e)}]"

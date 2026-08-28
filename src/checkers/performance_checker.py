@@ -1,62 +1,160 @@
-import re
-from typing import Optional
+import concurrent.futures
+import threading
+from typing import Optional, List, Dict, Any
 from .base import CheckerResult
+from spacy.lang.en import English
+
+try:
+    import spacy
+    import warnings
+    # Suppress the PyTorch/numpy non-writable tensor warning from bert_score
+    warnings.filterwarnings("ignore", message="The given NumPy array is not writable")
+    from selfcheckgpt.modeling_selfcheck import SelfCheckNLI, SelfCheckBERTScore
+except ImportError:
+    spacy = None
+    SelfCheckNLI = None
+    SelfCheckBERTScore = None
 
 class PerformanceChecker:
     """
-    Evaluates response for performance risk (e.g., hallucination, low confidence, self-contradiction).
-    Uses heuristic detection of hedging language.
+    Evaluates response for performance risk (hallucination) using SelfCheckGPT
+    (zero-resource black-box hallucination detection via stochastic sampling).
     """
     name = "performance"
     
-    # Simple heuristics for hedging/uncertainty
-    hedging_phrases = [
-        "i am not sure", "i might be wrong", "it is possible that",
-        "could be", "i think", "probably", "i don't have real-time",
-        "as an ai", "i cannot guarantee", "it seems like"
-    ]
-    
-    def evaluate(self, response_text: str) -> CheckerResult:
+    def __init__(self):
+        if spacy is None or SelfCheckNLI is None:
+            raise ImportError("selfcheckgpt and spacy are required for PerformanceChecker")
+            
         try:
-            if not response_text or not response_text.strip():
-                # Empty response is a performance failure
+            self.nlp = spacy.load("en_core_web_sm")
+        except:
+            self.nlp = English()
+            self.nlp.add_pipe("sentencizer")
+            
+        # Initialize models (CPU for demo/hackathon to avoid GPU mem issues)
+        self.selfcheck_nli = SelfCheckNLI(device="cpu")
+        self.selfcheck_bertscore = SelfCheckBERTScore(default_model="en")
+        
+        # Latency mitigation: Cache samples by prompt prefix
+        self._sample_cache = {}
+        
+        # PyTorch thread-safety lock for concurrent evaluations
+        self._model_lock = threading.Lock()
+
+    def evaluate(self, response_text: str, prompt: str = "", adapter=None, policy=None, **kwargs) -> CheckerResult:
+        try:
+            if not response_text or not response_text.strip() or response_text == "[LLM Returned Empty String]":
                 return CheckerResult(
                     checker_name=self.name,
                     risk_score=1.0,
                     explanation="Response is empty."
                 )
                 
-            lower_text = response_text.lower()
-            
-            # 1. Check for hedging
-            for phrase in self.hedging_phrases:
-                if phrase in lower_text:
-                    # High risk of low confidence or hallucination deflection
-                    return CheckerResult(
-                        checker_name=self.name,
-                        risk_score=0.7,
-                        flagged_span=phrase,
-                        explanation=f"Detected low-confidence/hedging language: '{phrase}'"
-                    )
-            
-            # 2. Check for contradiction (very naive heuristic for demo: "is X, but is not X")
-            # In a real system, this would use a small classifier. Here we just look for "but" near a negation.
-            if re.search(r'\b(is|are|was|were)\b.{1,20}\b(but|however)\b.{1,20}\b(not|never)\b', lower_text):
+            if not adapter or not prompt:
+                # Return dummy check if not wired properly yet
                 return CheckerResult(
                     checker_name=self.name,
-                    risk_score=0.9,
-                    flagged_span="contradictory clause pattern",
-                    explanation="Detected potential self-contradiction pattern."
+                    risk_score=0.0,
+                    explanation="Adapter or prompt missing, skipped SelfCheckGPT."
                 )
+
+            # Extract config knobs
+            n_samples = 3
+            sampling_temp = 1.0
+            nli_weight = 0.7
+            bertscore_weight = 0.3
             
-            return CheckerResult(
+            if policy:
+                n_samples = getattr(policy, "performance_n_samples", n_samples)
+                sampling_temp = getattr(policy, "performance_sampling_temperature", sampling_temp)
+                nli_weight = getattr(policy, "performance_nli_weight", nli_weight)
+                bertscore_weight = getattr(policy, "performance_bertscore_weight", bertscore_weight)
+
+            # 1. Adaptive Triggering / Caching
+            # Cache the full result if prompt and response are identical
+            full_cache_key = f"{hash(prompt)}_{hash(response_text)}_{n_samples}_{sampling_temp}"
+            if hasattr(self, "_result_cache") and full_cache_key in self._result_cache:
+                return self._result_cache[full_cache_key]
+
+            cache_key = f"{prompt[:100]}_{n_samples}_{sampling_temp}"
+            if cache_key in self._sample_cache:
+                samples = self._sample_cache[cache_key]
+            else:
+                # 2. Parallel Sampling for Latency Mitigation
+                samples = []
+                with concurrent.futures.ThreadPoolExecutor(max_workers=n_samples) as executor:
+                    futures = [executor.submit(adapter.generate_once, prompt, sampling_temp) for _ in range(n_samples)]
+                    for future in concurrent.futures.as_completed(futures):
+                        res = future.result()
+                        if res:
+                            samples.append(res)
+                self._sample_cache[cache_key] = samples
+                
+            if not samples:
+                return CheckerResult(
+                    checker_name=self.name,
+                    risk_score=1.0,
+                    explanation="Failed to generate stochastic samples (adapter degradation)."
+                )
+
+            # 3. Sentence Segmentation
+            doc = self.nlp(response_text)
+            sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+            
+            if not sentences:
+                return CheckerResult(
+                    checker_name=self.name,
+                    risk_score=0.0,
+                    explanation="No valid sentences found."
+                )
+
+            # 4. Predict Hallucination
+            with self._model_lock:
+                sent_scores_nli = self.selfcheck_nli.predict(sentences=sentences, sampled_passages=samples)
+                sent_scores_bertscore = self.selfcheck_bertscore.predict(sentences=sentences, sampled_passages=samples)
+
+            sentence_scores = []
+            max_risk = 0.0
+            flagged_span = None
+            
+            for i, sent in enumerate(sentences):
+                # Weighted ensemble of NLI and BERTScore
+                score = (nli_weight * sent_scores_nli[i]) + (bertscore_weight * sent_scores_bertscore[i])
+                max_risk = max(max_risk, score)
+                
+                span_start = response_text.find(sent)
+                span_end = span_start + len(sent) if span_start != -1 else -1
+                
+                sentence_scores.append({
+                    "sentence": sent,
+                    "span_start": span_start,
+                    "span_end": span_end,
+                    "inconsistency_score": float(score)
+                })
+                
+                # Save the highest risk sentence as the flagged_span for Risk Engine overlaps
+                if score == max_risk and score > 0.4:
+                    flagged_span = sent
+
+            result = CheckerResult(
                 checker_name=self.name,
-                risk_score=0.0,
-                explanation="No performance risks detected (high confidence)."
+                risk_score=round(max_risk, 3),
+                flagged_span=flagged_span,
+                explanation=f"SelfCheckGPT detected hallucination risk of {round(max_risk, 3)}.",
+                sentence_scores=sentence_scores,
+                confidence=round(1.0 - max_risk, 3),
+                method="selfcheckgpt-nli+bertscore"
             )
             
+            # Save to full result cache
+            if not hasattr(self, "_result_cache"):
+                self._result_cache = {}
+            self._result_cache[full_cache_key] = result
+            
+            return result
+            
         except Exception as e:
-            # Rule 4 from 03_Rules: Fail gracefully and conservatively
             return CheckerResult(
                 checker_name=self.name,
                 risk_score=1.0,

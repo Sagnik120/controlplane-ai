@@ -15,7 +15,20 @@ class BaseLLMAdapter(ABC):
         Args:
             prompt (str): The input prompt to send to the LLM.
             
+        """
+        pass
+
+    @abstractmethod
+    def generate_once(self, prompt: str, temperature: float = 1.0) -> str:
+        """
+        Generates a full response from the LLM in a single non-streaming call.
+        Useful for stochastic sampling.
+        
+        Args:
+            prompt (str): The input prompt to send to the LLM.
+            temperature (float): The sampling temperature.
+            
         Returns:
-            Iterator[str]: An iterator yielding chunks of the generated response.
+            str: The full generated text.
         """
         pass

@@ -6,3 +6,10 @@ PyYAML
 pytest
 google-genai
 httpx
+
+# Spec 01 - SelfCheckGPT dependencies
+selfcheckgpt==0.1.7
+sentence-transformers==3.0.1
+spacy==3.7.5
+protobuf==4.25.3
+sentencepiece==0.2.0

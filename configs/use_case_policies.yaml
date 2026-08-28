@@ -35,18 +35,18 @@ customer_support_chatbot:
   session_escalation_action: HUMAN
   calibrated_thresholds:
     performance:
-      tau_low: 0.914
-      tau_high: 0.969
+      tau_low: 0.967
+      tau_high: 0.981
     safety:
-      tau_low: 0.916
-      tau_high: 0.949
+      tau_low: 0.972
+      tau_high: 0.988
     bias:
-      tau_low: 0.974
+      tau_low: 0.97
       tau_high: 0.986
     pii:
-      tau_low: 0.924
-      tau_high: 0.98
-  calibration_n: 64
+      tau_low: 0.988
+      tau_high: 0.999
+  calibration_n: 79
 internal_knowledge_assistant:
   name: internal_knowledge_assistant
   description: Internal bot, favors accuracy over latency
@@ -79,15 +79,15 @@ internal_knowledge_assistant:
   session_escalation_action: HUMAN
   calibrated_thresholds:
     performance:
-      tau_low: 0.829
-      tau_high: 0.914
+      tau_low: 0.913
+      tau_high: 0.967
     safety:
-      tau_low: 0.826
-      tau_high: 0.916
+      tau_low: 0.902
+      tau_high: 0.972
     bias:
-      tau_low: 0.844
-      tau_high: 0.974
+      tau_low: 0.91
+      tau_high: 0.97
     pii:
-      tau_low: 0.885
-      tau_high: 0.924
-  calibration_n: 64
+      tau_low: 0.93
+      tau_high: 0.988
+  calibration_n: 79

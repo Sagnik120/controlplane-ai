@@ -23,7 +23,15 @@ controlplane-ai/
 │   ├── 09_Progress_Tracker.md
 │   ├── 10_Git_Discipline.md
 │   └── 11_Token_Efficiency.md
+│   ├── 00B_SPEC_UPGRADES.md
+│   └── specs/
+│       ├── SPEC_TRACKER.md
+│       ├── SPEC_01_performance_checker_selfcheckgpt.md
+│       ├── SPEC_02_pii_checker_presidio_hybrid.md
+│       └── SPEC_03_decision_logic_conformal_routing.md
 │
+├── scripts/                      # one-off utility scripts, e.g. calibrate_thresholds.py (SPEC_03)
+│   └── calibrate_thre
 ├── src/
 │   ├── __init__.py
 │   ├── adapters/                      # OWNER: whoever works on LLM integrations

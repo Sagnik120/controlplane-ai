@@ -4,6 +4,9 @@
 ## criteria are met and confirmed by the human running the diagnostic script for that phase.
 ## No phase is defined by time or days — only by completion of its exit criteria.
 
+
+## NOTE: This file's Phase 0-9 checklist is CLOSED/DONE (see docs/progress.md). For any work
+## after Phase 9, see `instructions/00B_SPEC_UPGRADES.md` and `instructions/specs/SPEC_TRACKER.md`.
 ---
 
 ## Phase 0 — Project Skeleton

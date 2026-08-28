@@ -51,6 +51,10 @@ You must stop and explicitly ask the human before proceeding if:
 - **Never** silently swap a planned library for a "better" one you prefer. Propose it, explain why,
   wait for approval.
 
+- **Exception:** during Spec Upgrade work (see `00B_SPEC_UPGRADES.md`), a dependency explicitly
+  named inside the currently-active `SPEC_NN_*.md` file is pre-approved and does not require
+  separately asking.
+  
 ## 4. Error Handling Standards
 
 - Every checker, adapter, and policy function must handle its own failure gracefully — a failing
