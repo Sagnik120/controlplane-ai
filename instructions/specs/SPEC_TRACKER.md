@@ -20,7 +20,7 @@ Legend: `[ ]` not started · `[~]` spec written, not yet coded · `[x]` coded + 
 - [x] `SPEC_07_feedback_loop_active_learning.md`
   Reuses SPEC_03's conformal calibration script; harvests human-reviewed queue items into a
   growing calibration set; recalibrates thresholds periodically with a before/after audit trail.
-- [~] `SPEC_08_intelligent_edit_repair.md`
+- [x] `SPEC_08_intelligent_edit_repair.md`
   Real span-level MODIFY: LLM micro-repair for Performance/Bias/Safety spans, Presidio
   AnonymizerEngine for PII spans, splice + re-verify before release, escalate to REGENERATE on
   failed re-check. Strongest live-demo moment.
