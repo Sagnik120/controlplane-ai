@@ -18,6 +18,16 @@ class UseCasePolicy(BaseModel):
     # Behaviors
     block_on_overlap: bool = True
     redact_pii: bool = False
+    
+    # Spec 01 Config Knobs
+    performance_n_samples: int = 3
+    performance_sampling_temperature: float = 1.0
+    performance_nli_weight: float = 0.7
+    performance_bertscore_weight: float = 0.3
+    
+    # Spec 02 Config Knobs
+    pii_entity_allowlist: Optional[list] = None
+    pii_min_confidence: float = 0.5
 
 class ControlDecision(BaseModel):
     """
