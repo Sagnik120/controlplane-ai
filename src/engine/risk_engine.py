@@ -1,3 +1,5 @@
+import os
+import yaml
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
@@ -9,6 +11,16 @@ from src.checkers.bias_checker import BiasChecker
 from src.checkers.pii_checker import PiiChecker
 from src.cost.cost_monitor import CostMonitor
 
+class OverlapRecord(BaseModel):
+    span_start: int
+    span_end: int
+    overlapping_checkers: List[str]
+    individual_scores: Dict[str, float]
+    base_noisy_or: float
+    multiplier_applied: float
+    multiplier_reason: str
+    final_span_risk: float
+
 class FinalRiskReport(BaseModel):
     """
     Combined report for a single LLM response after running through all checkers.
@@ -17,7 +29,7 @@ class FinalRiskReport(BaseModel):
     is_blocked: bool
     checker_results: List[Any]  # Can be CheckerResult or CostMonitorResult
     overlap_detected: bool
-    overlap_explanation: Optional[str] = None
+    overlap_records: List[OverlapRecord] = Field(default_factory=list)
 
 class RiskEngine:
     def __init__(self):
@@ -29,6 +41,25 @@ class RiskEngine:
             PiiChecker()
         ]
         self.cost_monitor = CostMonitor()
+        
+        # Load severity matrix
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        matrix_path = os.path.join(project_root, 'configs', 'overlap_severity_matrix.yaml')
+        if os.path.exists(matrix_path):
+            with open(matrix_path, 'r') as f:
+                data = yaml.safe_load(f)
+                self.overlap_multipliers = data.get('overlap_multipliers', {})
+        else:
+            self.overlap_multipliers = {'default': 1.1}
+            
+    def _normalize_pair(self, c1: str, c2: str) -> str:
+        """Sorts category names alphabetically so performance_pii == pii_performance."""
+        sorted_pair = sorted([c1.lower(), c2.lower()])
+        return f"{sorted_pair[0]}_{sorted_pair[1]}"
+        
+    def _get_multiplier(self, c1: str, c2: str) -> float:
+        pair = self._normalize_pair(c1, c2)
+        return self.overlap_multipliers.get(pair, self.overlap_multipliers.get('default', 1.1))
         
     def _get_span_indices(self, text: str, span: str) -> List[tuple]:
         """Finds all (start, end) indices of a span within the text."""
@@ -44,14 +75,6 @@ class RiskEngine:
             start = idx + len(span)
         return indices
         
-    def _check_overlap(self, ranges1: List[tuple], ranges2: List[tuple]) -> bool:
-        """Returns True if any range in ranges1 overlaps with any range in ranges2."""
-        for s1, e1 in ranges1:
-            for s2, e2 in ranges2:
-                if max(s1, s2) < min(e1, e2):  # True overlap condition
-                    return True
-        return False
-
     def evaluate_response(self, response_text: str, generation_time_ms: int = 0, model_tier: str = "standard", prompt: str = "", adapter=None, policy=None) -> FinalRiskReport:
         results = []
         
@@ -63,48 +86,115 @@ class RiskEngine:
                 results.append(checker.evaluate(response_text))
             
         # 2. Run cost monitor
-        results.append(self.cost_monitor.evaluate(response_text, generation_time_ms, model_tier))
+        cost_result = self.cost_monitor.evaluate(response_text, generation_time_ms, model_tier)
         
-        # 3. Detect Overlaps between any two flagged spans
-        overlap_detected = False
-        overlap_pairs = []
-        
-        for i in range(len(results)):
-            for j in range(i + 1, len(results)):
-                r1 = results[i]
-                r2 = results[j]
-                
-                # Only check for overlap if both have flagged spans
-                if getattr(r1, 'flagged_span', None) and getattr(r2, 'flagged_span', None):
-                    idx1 = self._get_span_indices(response_text, r1.flagged_span)
-                    idx2 = self._get_span_indices(response_text, r2.flagged_span)
+        # 3. Detect Overlaps using Interval Merging
+        # Extract all spans: list of (start, end, checker_name, risk_score)
+        all_spans = []
+        for r in results:
+            if getattr(r, 'entities', []):
+                # PII checker uses entities with precise indices
+                for ent in r.entities:
+                    start = ent.get('span_start')
+                    end = ent.get('span_end')
+                    if start is not None and end is not None:
+                        all_spans.append((start, end, r.checker_name, r.risk_score))
+            elif getattr(r, 'flagged_span', None):
+                indices = self._get_span_indices(response_text, r.flagged_span)
+                for s, e in indices:
+                    all_spans.append((s, e, r.checker_name, r.risk_score))
                     
-                    if self._check_overlap(idx1, idx2):
-                        overlap_detected = True
-                        r1.overlaps_with.append(r2.checker_name)
-                        r2.overlaps_with.append(r1.checker_name)
-                        overlap_pairs.append(f"{r1.checker_name} & {r2.checker_name}")
-                        
+        # Sort intervals by start index
+        all_spans.sort(key=lambda x: x[0])
+        
+        merged_intervals = []
+        for span in all_spans:
+            s, e, name, score = span
+            if not merged_intervals:
+                merged_intervals.append({'start': s, 'end': e, 'checkers': {name: score}})
+            else:
+                last = merged_intervals[-1]
+                # Check for overlap: max(s1, s2) < min(e1, e2)
+                # Since sorted by start, s is always >= last['start']
+                if s < last['end']:
+                    # Overlap found!
+                    last['end'] = max(last['end'], e)
+                    # Use max risk score if same checker flagged multiple times in same span
+                    if name in last['checkers']:
+                        last['checkers'][name] = max(last['checkers'][name], score)
+                    else:
+                        last['checkers'][name] = score
+                else:
+                    merged_intervals.append({'start': s, 'end': e, 'checkers': {name: score}})
+                    
+        overlap_records = []
+        overlap_detected = False
+        
+        for interval in merged_intervals:
+            checkers_dict = interval['checkers']
+            if len(checkers_dict) > 1:
+                overlap_detected = True
+                names = list(checkers_dict.keys())
+                
+                # Calculate Noisy-OR
+                prob_safe = 1.0
+                for score in checkers_dict.values():
+                    prob_safe *= (1.0 - score)
+                base_noisy_or = 1.0 - prob_safe
+                
+                # Find max pair multiplier
+                max_mult = 1.0
+                max_pair = None
+                for i in range(len(names)):
+                    for j in range(i + 1, len(names)):
+                        m = self._get_multiplier(names[i], names[j])
+                        if m > max_mult:
+                            max_mult = m
+                            max_pair = (names[i], names[j])
+                            
+                final_span_risk = min(1.0, base_noisy_or * max_mult)
+                
+                if max_pair:
+                    reason = f"{max_pair[0]}+{max_pair[1]} pair detected ({max_mult}x)"
+                else:
+                    reason = "default overlap multiplier applied"
+                    
+                overlap_records.append(OverlapRecord(
+                    span_start=interval['start'],
+                    span_end=interval['end'],
+                    overlapping_checkers=names,
+                    individual_scores=checkers_dict,
+                    base_noisy_or=round(base_noisy_or, 3),
+                    multiplier_applied=max_mult,
+                    multiplier_reason=reason,
+                    final_span_risk=round(final_span_risk, 3)
+                ))
+                
+                # Tag the original checker results with overlap info for legacy compat
+                for r in results:
+                    if r.checker_name in names:
+                        for other in names:
+                            if other != r.checker_name and other not in r.overlaps_with:
+                                r.overlaps_with.append(other)
+        
         # 4. Calculate Final Risk Score
         # Base score is the maximum risk score from any single checker
         max_score = max((r.risk_score for r in results), default=0.0)
         
-        # Escalation logic: If multiple risk categories overlap on the same text snippet,
-        # it compounds the risk. (e.g., PII that is also unsafe/biased)
-        if overlap_detected:
-            # Compound risk penalty
-            max_score = min(max_score + 0.15, 1.0)
-            overlap_explanation = f"Risk score escalated due to overlapping flagged spans between: {', '.join(overlap_pairs)}."
-        else:
-            overlap_explanation = None
+        # Take the maximum of individual checker risks OR any overlap risks
+        if overlap_records:
+            max_overlap_risk = max(rec.final_span_risk for rec in overlap_records)
+            max_score = max(max_score, max_overlap_risk)
             
-        # 5. Is Blocked? (For Phase 4 policy we might make this dynamic, but for now hardcode threshold > 0.8)
         is_blocked = max_score >= 0.8
         
+        # Include cost monitor result in output array
+        final_results_list = results + [cost_result]
+        
         return FinalRiskReport(
-            overall_risk_score=round(max_score, 2),
+            overall_risk_score=round(max_score, 3),
             is_blocked=is_blocked,
-            checker_results=results,
+            checker_results=final_results_list,
             overlap_detected=overlap_detected,
-            overlap_explanation=overlap_explanation
+            overlap_records=overlap_records
         )
