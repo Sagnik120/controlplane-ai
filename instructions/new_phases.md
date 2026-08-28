@@ -10,13 +10,13 @@ Legend: `[ ]` not started · `[~]` spec written, not yet coded · `[x]` coded + 
 
 ## Batch 1 — Detection Layer (core "checking mechanism" novelty)
 
-- [~] `01_performance_checker_selfcheckgpt.md`
+- [x] `01_performance_checker_selfcheckgpt.md`
   Replaces hard-coded hedge-phrase regex in `performance_checker.py` with a black-box,
   zero-resource hallucination/uncertainty detector based on **SelfCheckGPT** (Manakul et al.,
   EMNLP 2023) — sampling + consistency scoring. No model internals needed → fits the
   "consume via API" constraint from the PS.
 
-- [~] `02_pii_checker_presidio_hybrid.md`
+- [x] `02_pii_checker_presidio_hybrid.md`
   Replaces static regex PII detection with a **Presidio-style hybrid pipeline**
   (regex + checksum recognizers + transformer NER model, e.g. `piiranha`/`bert-base-NER`
   from HuggingFace) plus a context-window scoring layer. Directly answers the PS line about

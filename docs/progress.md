@@ -4,6 +4,16 @@ Last updated: 2026-08-28
 
 ## Overall Status: NOT STARTED
 
+## Spec Upgrades (Post-Phase-9)
+- **Spec 01 (Performance Checker - SelfCheckGPT)**: [x] DONE
+  - Replaced regex with zero-resource hallucination/uncertainty detector based on SelfCheckGPT.
+- **Spec 02 (PII Checker - Presidio Hybrid)**: [x] DONE
+  - Replaced static regex with Microsoft Presidio hybrid pipeline (Regex + piiranha-v1 transformer NER + Context-word boosting).
+  - Added Noisy-OR aggregation and per-use-case entity allowlists.
+
+## Current Status
+- **Architecture**: Validated and preserved. Middleware routing text through parallel checkers into Risk Engine and Control Policy.
+
 ## Phase Checklist
 - [x] Phase 0 — Project Skeleton
 - [x] Phase 1 — LLM Adapter Layer

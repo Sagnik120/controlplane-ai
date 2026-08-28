@@ -78,9 +78,18 @@
 - Any deviation from the instruction files, and why: Defaulted the `dependencies.py` to `MockAdapter` so you do not drain your free Gemini API credits while testing the UI.
 - Next immediate step: Phase 8 — Metrics Summary (Dashboard additions).
 
-## [Phase 3 — Risk Engine + Overlap Detection] — IN PROGRESS
-- What was built: (nothing yet)
-- What was tested and confirmed by human: (n/a)
-- What is still stubbed/incomplete: Risk Engine logic.
-- Any deviation from the instruction files, and why: none
-- Next immediate step: Build Risk Engine, overlap logic, and diagnostic script.
+## Spec Upgrades (Post-Phase-9)
+
+## [Spec 01 — Performance Checker SelfCheckGPT] — DONE
+- What was built: Implemented PerformanceChecker using SelfCheckGPT ensemble (NLI + BERTScore) with thread-safe inference and aggressive sample/result caching.
+- What was tested and confirmed by human: End-to-end performance diagnostic overlapping with PII and real-world multi-threading.
+- What is still stubbed/incomplete: Cache key could theoretically mismatch across providers if same prompt/response happens exactly but provider differs.
+- Any deviation from the instruction files, and why: None.
+- Next immediate step: Spec 02.
+
+## [Spec 02 — PII Checker Presidio Hybrid] — DONE
+- What was built: Rewrote PII Checker with a Microsoft Presidio hybrid pipeline, custom Piiranha NER HuggingFace model, noisy-OR aggregation, and context-word boosting edge-case resolution.
+- What was tested and confirmed by human: Deep real-world diagnostics testing internal vs external policies, obfuscated text, and false-positive resilience.
+- What is still stubbed/incomplete: None.
+- Any deviation from the instruction files, and why: Used `pii_min_confidence=0.6` in customer support policy per spec definition.
+- Next immediate step: Wait for instruction.
