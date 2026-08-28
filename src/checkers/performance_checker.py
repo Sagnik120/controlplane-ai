@@ -42,6 +42,22 @@ class PerformanceChecker:
         # PyTorch thread-safety lock for concurrent evaluations
         self._model_lock = threading.Lock()
 
+    def _cheap_uncertainty(self, text: str) -> float:
+        """
+        Simulated Tier-0 gate.
+        In production, this would use token entropy or top-2 logit margin from the streaming logprobs.
+        Here we mock it based on sentence length/complexity for demonstration.
+        """
+        if not text:
+            return 0.0
+        words = text.split()
+        if len(words) < 10:
+            return 0.1 # Highly confident
+        elif len(words) < 50:
+            return 0.4 # Uncertain band
+        else:
+            return 0.7 # High uncertainty
+
     def evaluate(self, response_text: str, prompt: str = "", adapter=None, policy=None, **kwargs) -> CheckerResult:
         try:
             if not response_text or not response_text.strip() or response_text == "[LLM Returned Empty String]":
@@ -70,6 +86,19 @@ class PerformanceChecker:
                 sampling_temp = getattr(policy, "performance_sampling_temperature", sampling_temp)
                 nli_weight = getattr(policy, "performance_nli_weight", nli_weight)
                 bertscore_weight = getattr(policy, "performance_bertscore_weight", bertscore_weight)
+
+            # 0. Tier-0 Gate (SPEC 09 Checkpoint-Backtrack Resampling)
+            tier0_band_low = getattr(policy, "tier0_uncertain_band_low", 0.20)
+            tier0_score = self._cheap_uncertainty(response_text)
+            
+            if tier0_score < tier0_band_low:
+                return CheckerResult(
+                    checker_name=self.name,
+                    risk_score=tier0_score,
+                    explanation=f"Tier-0 Gate confident (score {tier0_score}). Bypassed Tier-1 SelfCheckGPT.",
+                    tier=0,
+                    ran_selfcheck=False
+                )
 
             # 1. Adaptive Triggering / Caching
             # Cache the full result if prompt and response are identical
@@ -144,7 +173,9 @@ class PerformanceChecker:
                 explanation=f"SelfCheckGPT detected hallucination risk of {round(max_risk, 3)}.",
                 sentence_scores=sentence_scores,
                 confidence=round(1.0 - max_risk, 3),
-                method="selfcheckgpt-nli+bertscore"
+                method="selfcheckgpt-nli+bertscore",
+                tier=1,
+                ran_selfcheck=True
             )
             
             # Save to full result cache

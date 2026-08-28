@@ -20,3 +20,7 @@ class CheckerResult(BaseModel):
     # Extended fields for LLM-as-a-judge checkers (Bias, Safety)
     judge_category: Optional[str] = None
     judge_severity: Optional[str] = None
+    
+    # Extended fields for CBR (Spec 09)
+    tier: Optional[int] = None
+    ran_selfcheck: Optional[bool] = None

@@ -19,6 +19,9 @@ class ControlPolicy:
         active_tau_low = 1.0
         active_tau_high = 1.0
         
+        clean_prefix = None
+        failed_span = None
+        
         spans = []
         
         # 1. Check each dimension against its calibrated thresholds
@@ -82,6 +85,23 @@ class ControlPolicy:
                 target_spans = spans
             else:
                 action = "REGENERATE"
+                if spans and response_text:
+                    earliest_idx = len(response_text)
+                    for s in spans:
+                        span_text = s.get("text", "")
+                        idx = response_text.find(span_text)
+                        if idx != -1 and idx < earliest_idx:
+                            earliest_idx = idx
+                            failed_span = span_text
+                    
+                    if earliest_idx != -1 and earliest_idx != len(response_text):
+                        clean_prefix = response_text[:earliest_idx]
+                    else:
+                        clean_prefix = ""
+                        failed_span = ""
+                else:
+                    clean_prefix = ""
+                    failed_span = ""
                 
         reasoning = ""
         # 4. Check Session Signals (SPEC 06 Override)
@@ -125,5 +145,7 @@ class ControlPolicy:
             triggering_dimension=triggering_dim,
             calibration_metadata=calibration_meta,
             target_spans=target_spans,
+            clean_prefix=clean_prefix,
+            failed_span=failed_span,
             reasoning=reasoning
         )

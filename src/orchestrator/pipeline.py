@@ -7,6 +7,7 @@ from src.audit.audit_logger import AuditLogger
 from src.checkers.base import CheckerResult
 from src.session.session_state import SessionStore
 from src.repair.span_repair import SpanRepairEngine
+from src.regenerate.checkpoint_backtrack import CheckpointManager, RegenerationEngine
 
 class PipelineOrchestrator:
     """
@@ -20,6 +21,8 @@ class PipelineOrchestrator:
         self.audit_logger = audit_logger
         self.session_store = SessionStore()
         self.repair_engine = SpanRepairEngine()
+        self.checkpoint_mgr = CheckpointManager()
+        self.regeneration_engine = RegenerationEngine(adapter, self.checkpoint_mgr)
         
     def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None) -> dict:
         """
@@ -110,7 +113,67 @@ class PipelineOrchestrator:
                         # Failed to repair safely (e.g., still MODIFY, HUMAN, or REGENERATE). Escalate to REGENERATE.
                         decision.action = "REGENERATE"
                         decision.reasoning = f"REPAIR FAILED RE-VERIFICATION -> ESCALATED TO REGENERATE: {reverify_decision.reasoning}"
-            
+                        decision.clean_prefix = reverify_decision.clean_prefix
+                        decision.failed_span = reverify_decision.failed_span
+
+            # 4.6. SPEC 09: Checkpoint-Backtrack Regeneration
+            if decision.action == "REGENERATE":
+                if decision.clean_prefix is not None:
+                    # Mocking turn_id for the synchronous pipeline
+                    turn_id = session_id or "default_turn"
+                    
+                    # Commit the clean prefix as the last good checkpoint
+                    self.checkpoint_mgr.commit(
+                        turn_id=turn_id,
+                        char_offset=len(decision.clean_prefix),
+                        token_offset=0,
+                        risk_snapshot=report,
+                        prompt_state=decision.clean_prefix
+                    )
+                    
+                    final_text = None
+                    max_attempts = getattr(policy, "max_regenerate_attempts", 2)
+                    for attempt in range(1, max_attempts + 1):
+                        print(f"   [Pipeline] Initiating SPEC 09 backtrack-regeneration (Attempt {attempt})...")
+                        new_text = self.regeneration_engine.regenerate(
+                            turn_id=turn_id,
+                            original_prompt=prompt,
+                            flagged_span=decision.failed_span or "General failure",
+                            risk_reason=decision.reasoning,
+                            use_case_policy=policy
+                        )
+                        
+                        # Re-verify the spliced result
+                        spliced_result = decision.clean_prefix + " " + new_text
+                        
+                        reverify_report = self.risk_engine.evaluate_response(
+                            spliced_result,
+                            prompt=prompt,
+                            adapter=self.adapter,
+                            policy=policy
+                        )
+                        reverify_decision = self.control_policy.evaluate(reverify_report, policy, response_text=spliced_result, session_state=session_state)
+                        
+                        if reverify_decision.action == "ALLOW":
+                            decision.action = "ALLOW"
+                            decision.reasoning = f"SILENT REGENERATE SUCCESS: {decision.reasoning}"
+                            report = reverify_report
+                            llm_output = spliced_result
+                            
+                            # Commit the new clean state
+                            self.checkpoint_mgr.commit(
+                                turn_id=turn_id,
+                                char_offset=len(spliced_result),
+                                token_offset=0,
+                                risk_snapshot=reverify_report,
+                                prompt_state=spliced_result
+                            )
+                            break
+                            
+                    if decision.action != "ALLOW":
+                        # Escalated to HUMAN after exhaustion
+                        decision.action = "HUMAN"
+                        decision.reasoning = "HUMAN ESCALATION: Regeneration attempts exhausted."
             # 5. Audit Log
             metadata = {"user_id": user_id, "prompt_length": len(prompt)}
             if session_id and session_state:

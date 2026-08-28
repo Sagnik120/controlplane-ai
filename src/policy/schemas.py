@@ -45,6 +45,12 @@ class UseCasePolicy(BaseModel):
     session_require_monotonic_trend: bool = True
     session_cumulative_pii_threshold: int = 3
     session_escalation_action: str = "HUMAN"
+    
+    # Spec 09 Config Knobs (Checkpoint-Backtrack Resampling)
+    max_regenerate_attempts: int = 2
+    tier0_uncertain_band_low: float = 0.20
+    tier0_uncertain_band_high: float = 0.80
+    regenerate_temperature: float = 0.2
 
 class ControlDecision(BaseModel):
     """
@@ -54,4 +60,6 @@ class ControlDecision(BaseModel):
     triggering_dimension: Optional[str] = None
     calibration_metadata: Optional[Dict[str, Any]] = None
     target_spans: Optional[list] = None
+    clean_prefix: Optional[str] = None
+    failed_span: Optional[str] = None
     reasoning: str
