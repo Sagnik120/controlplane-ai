@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 class CheckerResult(BaseModel):
     """
@@ -10,3 +10,9 @@ class CheckerResult(BaseModel):
     flagged_span: Optional[str] = None
     overlaps_with: List[str] = Field(default_factory=list)
     explanation: str
+    
+    # Extended fields for advanced Checkers (like PerformanceChecker with SelfCheckGPT)
+    sentence_scores: Optional[List[Dict[str, Any]]] = None
+    confidence: Optional[float] = None
+    method: Optional[str] = None
+    entities: List[Dict[str, Any]] = Field(default_factory=list)

@@ -1,39 +1,156 @@
-import re
+import os
+import transformers
+from typing import List, Dict, Any, Optional
+
+try:
+    from presidio_analyzer import AnalyzerEngine, RecognizerRegistry, EntityRecognizer, RecognizerResult
+    from presidio_analyzer.nlp_engine import NlpEngineProvider
+except ImportError:
+    AnalyzerEngine = None
+    RecognizerRegistry = None
+    EntityRecognizer = object
+    RecognizerResult = None
+    NlpEngineProvider = None
+
 from .base import CheckerResult
 
+class PiiranhaRecognizer(EntityRecognizer):
+    """
+    Custom Presidio EntityRecognizer wrapping iiiorg/piiranha-v1-detect-personal-information
+    """
+    def __init__(self, supported_entities=None):
+        if supported_entities is None:
+            # Common labels from piiranha
+            supported_entities = ["PERSON", "LOCATION", "ORGANIZATION", "PASSWORD", "IP_ADDRESS", "EMAIL", "PHONE_NUMBER", "SSN"]
+        super().__init__(supported_entities=supported_entities, name="PiiranhaRecognizer")
+        # Load HuggingFace pipeline
+        self.pipeline = transformers.pipeline(
+            "ner", 
+            model="iiiorg/piiranha-v1-detect-personal-information",
+            aggregation_strategy="simple"
+        )
+        
+    def load(self):
+        pass
+
+    def analyze(self, text: str, entities: List[str], nlp_artifacts=None):
+        results = []
+        if not text:
+            return results
+        
+        preds = self.pipeline(text)
+        for pred in preds:
+            entity_group = pred.get("entity_group", pred.get("entity"))
+            if not entities or entity_group in entities:
+                res = RecognizerResult(
+                    entity_type=entity_group,
+                    start=pred["start"],
+                    end=pred["end"],
+                    score=pred["score"]
+                )
+                results.append(res)
+        return results
+
 class PiiChecker:
-    """
-    Evaluates response for Personally Identifiable Information (PII) leakage.
-    Uses regex detection for SSN, Phone, Email, Credit Cards.
-    """
     name = "pii"
     
-    pii_patterns = {
-        "SSN": r"\b\d{3}-\d{2}-\d{4}\b",
-        "Email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b",
-        "Phone": r"\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b",
-        "CreditCard": r"\b(?:\d[ -]*?){13,16}\b"
-    }
-    
-    def evaluate(self, response_text: str) -> CheckerResult:
+    def __init__(self, analyzer=None):
+        if AnalyzerEngine is None:
+            raise ImportError("presidio_analyzer is not installed")
+            
+        if analyzer:
+            self.analyzer = analyzer
+        else:
+            # Initialize custom registry
+            registry = RecognizerRegistry()
+            registry.load_predefined_recognizers()
+            
+            # Add custom Piiranha NER
+            piiranha = PiiranhaRecognizer()
+            registry.add_recognizer(piiranha)
+            
+            # Add obfuscated phone recognizer to demonstrate context-boosting edge case
+            from presidio_analyzer import PatternRecognizer, Pattern
+            obfuscated_phone_pattern = Pattern(
+                name="obfuscated_phone",
+                regex=r"(?i)\b(?:\d|one|two|three|four|five|six|seven|eight|nine|zero)(?:[\s\W]*(?:\d|one|two|three|four|five|six|seven|eight|nine|zero)){6,14}\b",
+                score=0.3  # Base score 0.3 + 0.35 context boost = 0.65 (passes 0.6 threshold)
+            )
+            obfuscated_phone_recognizer = PatternRecognizer(
+                supported_entity="PHONE_NUMBER", 
+                patterns=[obfuscated_phone_pattern],
+                context=["phone", "call", "mobile", "telephone"] # Removed generic "number"
+            )
+            registry.add_recognizer(obfuscated_phone_recognizer)
+            
+            # Setup NLP Engine for Presidio (default spacy)
+            provider = NlpEngineProvider(nlp_configuration={
+                "nlp_engine_name": "spacy",
+                "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
+            })
+            nlp_engine = provider.create_engine()
+            
+            self.analyzer = AnalyzerEngine(registry=registry, nlp_engine=nlp_engine, supported_languages=["en"])
+            
+    def evaluate(self, response_text: str, **kwargs) -> CheckerResult:
         try:
             if not response_text:
-                return CheckerResult(checker_name=self.name, risk_score=0.0, explanation="Empty.")
+                return CheckerResult(checker_name=self.name, risk_score=0.0, explanation="Empty.", entities=[])
                 
-            for pii_type, pattern in self.pii_patterns.items():
-                match = re.search(pattern, response_text)
-                if match:
-                    return CheckerResult(
-                        checker_name=self.name,
-                        risk_score=0.9,
-                        flagged_span=match.group(0),
-                        explanation=f"Detected potential {pii_type} leakage."
-                    )
+            policy = kwargs.get('policy')
+            
+            # Default allowlist if no policy provided
+            allowlist = ["EMAIL_ADDRESS", "PHONE_NUMBER", "US_SSN", "CREDIT_CARD", "PERSON", "EMAIL", "SSN"]
+            min_confidence = 0.5
+            
+            if policy and hasattr(policy, 'pii_entity_allowlist') and policy.pii_entity_allowlist:
+                allowlist = policy.pii_entity_allowlist
+                min_confidence = getattr(policy, 'pii_min_confidence', min_confidence)
+                
+            results = self.analyzer.analyze(
+                text=response_text,
+                language="en",
+                entities=allowlist
+            )
+            
+            # Filter by min_confidence
+            valid_results = [r for r in results if r.score >= min_confidence]
+            
+            if not valid_results:
+                return CheckerResult(checker_name=self.name, risk_score=0.0, explanation="No PII risks detected.", entities=[])
+                
+            # Extract entities
+            entities = []
+            for r in valid_results:
+                entities.append({
+                    "entity_type": r.entity_type,
+                    "text": response_text[r.start:r.end],
+                    "span_start": r.start,
+                    "span_end": r.end,
+                    "confidence": float(r.score),
+                    "detection_method": "presidio_hybrid_piiranha"
+                })
+                
+            # Calculate Noisy-OR aggregation for risk score: 1 - product(1 - c_i)
+            prob_safe = 1.0
+            highest_score = 0.0
+            flagged_span = None
+            
+            for r in valid_results:
+                prob_safe *= (1.0 - float(r.score))
+                if r.score > highest_score:
+                    highest_score = float(r.score)
+                    flagged_span = response_text[r.start:r.end]
+                    
+            risk_score = 1.0 - prob_safe
             
             return CheckerResult(
                 checker_name=self.name,
-                risk_score=0.0,
-                explanation="No PII risks detected."
+                risk_score=round(risk_score, 3),
+                flagged_span=flagged_span,
+                explanation=f"Detected {len(valid_results)} PII entities. Noisy-OR aggregated risk: {round(risk_score, 3)}",
+                entities=entities,
+                method="presidio_hybrid_piiranha"
             )
             
         except Exception as e:
