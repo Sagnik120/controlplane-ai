@@ -1,0 +1,8 @@
+overlap_multipliers:
+  performance_pii: 1.8
+  performance_safety: 1.5
+  safety_pii: 1.6
+  bias_pii: 1.4
+  performance_bias: 1.2
+  bias_safety: 1.3
+  default: 1.1
