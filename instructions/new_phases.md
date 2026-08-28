@@ -24,7 +24,7 @@ Legend: `[ ]` not started · `[~]` spec written, not yet coded · `[x]` coded + 
 
 ## Batch 2 — Decision Logic Layer (directly answers "blocked, edited, or escalated")
 
-- [~] `03_decision_logic_conformal_routing.md`
+- [x] `03_decision_logic_conformal_routing.md`
   Upgrades `control_policy.py` from fixed `if score > threshold` rules to a
   **conformal-prediction-calibrated tiered router** (ALLOW / MODIFY / REGENERATE / HUMAN)
   with statistical coverage guarantees instead of arbitrary thresholds. This is the

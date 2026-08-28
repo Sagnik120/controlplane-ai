@@ -92,4 +92,11 @@
 - What was tested and confirmed by human: Deep real-world diagnostics testing internal vs external policies, obfuscated text, and false-positive resilience.
 - What is still stubbed/incomplete: None.
 - Any deviation from the instruction files, and why: Used `pii_min_confidence=0.6` in customer support policy per spec definition.
+- Next immediate step: Spec 03.
+
+## [Spec 03 — Conformal Tiered Routing] — DONE
+- What was built: Rewrote `control_policy.py` to route requests into ALLOW, MODIFY, REGENERATE, or HUMAN based on Conformal Prediction calibrated thresholds (`tau_low`, `tau_high`). Added a span-coverage percentage logic to distinguish targeted MODIFY vs total REGENERATE. Intercepted HUMAN decisions in `audit_logger.py` to write to a dedicated JSONL queue.
+- What was tested and confirmed by human: Calibration script ran successfully and wrote boundaries to YAML. Conformal policy diagnostic passed all 5 edge cases (ALLOW, MODIFY, REGENERATE, HUMAN, Overlap Promotion).
+- What is still stubbed/incomplete: None.
+- Any deviation from the instruction files, and why: None.
 - Next immediate step: Wait for instruction.

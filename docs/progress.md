@@ -10,6 +10,10 @@ Last updated: 2026-08-28
 - **Spec 02 (PII Checker - Presidio Hybrid)**: [x] DONE
   - Replaced static regex with Microsoft Presidio hybrid pipeline (Regex + piiranha-v1 transformer NER + Context-word boosting).
   - Added Noisy-OR aggregation and per-use-case entity allowlists.
+- **Spec 03 (Decision Logic - Conformal Routing)**: [x] DONE
+  - Upgraded Control Policy to use mathematically calibrated Conformal Prediction thresholds (tau_low, tau_high).
+  - Implemented 4-tier routing (ALLOW, MODIFY, REGENERATE, HUMAN) based on span coverage density.
+  - Intercepted HUMAN escalations into an isolated JSONL queue.
 
 ## Current Status
 - **Architecture**: Validated and preserved. Middleware routing text through parallel checkers into Risk Engine and Control Policy.
