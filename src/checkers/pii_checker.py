@@ -85,6 +85,31 @@ class PiiChecker(BaseChecker):
             )
             registry.add_recognizer(obfuscated_phone_recognizer)
             
+            # Add India PII patterns (PAN and Aadhaar)
+            india_pan_pattern = Pattern(
+                name="india_pan",
+                regex=r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b",
+                score=0.8
+            )
+            india_pan_recognizer = PatternRecognizer(
+                supported_entity="IN_PAN",
+                patterns=[india_pan_pattern],
+                context=["pan", "tax", "india"]
+            )
+            registry.add_recognizer(india_pan_recognizer)
+            
+            india_aadhaar_pattern = Pattern(
+                name="india_aadhaar",
+                regex=r"\b\d{4}\s\d{4}\s\d{4}\b",
+                score=0.8
+            )
+            india_aadhaar_recognizer = PatternRecognizer(
+                supported_entity="IN_AADHAAR",
+                patterns=[india_aadhaar_pattern],
+                context=["aadhaar", "uidai", "india", "id"]
+            )
+            registry.add_recognizer(india_aadhaar_recognizer)
+            
             # Setup NLP Engine for Presidio (default spacy)
             provider = NlpEngineProvider(nlp_configuration={
                 "nlp_engine_name": "spacy",
