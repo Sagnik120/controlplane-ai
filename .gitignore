@@ -7,3 +7,9 @@ node_modules/
 .DS_Store
 *.log
 *.jsonl
+data/*.jsonl
+smoke_audit.jsonl
+human_review_queue.jsonl
+metrics_log.jsonl
+action_decisions.jsonl
+.pytest_cache/

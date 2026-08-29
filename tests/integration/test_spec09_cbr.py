@@ -65,6 +65,9 @@ class MockCBRRiskEngine(RiskEngine):
                 checker_results=[]
             )
 
+    async def evaluate_response_async(self, response_text: str, **kwargs):
+        return self.evaluate_response(response_text, **kwargs)
+
 class TestSpec09CBR(unittest.TestCase):
     def setUp(self):
         from src.policy.adaptive_calibration import AdaptiveCalibrator
