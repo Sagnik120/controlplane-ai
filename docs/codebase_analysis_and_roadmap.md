@@ -37,14 +37,14 @@ This section details exactly how each `.py` file is connected, what the underlyi
 ### 2.3 `src/engine/`
 - **Files**: `risk_engine.py`
 - **Connections**: Called by `src/orchestrator/pipeline.py`. It calls all the checkers in `src/checkers/`.
-- **Implementation Detail**: Accepts the LLM response, dispatches the registered checkers in parallel using a `ThreadPoolExecutor` and `asyncio.gather`, catching exceptions to prevent pipeline crashes. It calculates overlap using a basic text-intersection heuristic. Returns a `FinalRiskReport` Pydantic model.
+- **Implementation Detail**: Accepts the LLM response, dispatches the registered checkers in parallel using a `ThreadPoolExecutor` and `asyncio.gather`, catching exceptions to prevent pipeline crashes. It uses `asyncio.wait_for` to strictly enforce consequence-aware latency budgets, automatically cancelling long-running checks when under stress (SPEC 11). It calculates overlap using a basic text-intersection heuristic. Returns a `FinalRiskReport` Pydantic model.
 - **SOTA vs Rule-Based**: The parallel dispatch is **SOTA Systems Engineering**, while overlap detection is **Rule-Based**.
 - **Harsh Reality**: While the engine runs checkers in parallel, `pipeline.py` blocks synchronously waiting for the overall engine to finish. We are bottlenecked by the slowest checker (usually Performance) rather than the sum, which is a massive improvement but still synchronous at the outer layer.
 
 ### 2.4 `src/policy/`
 - **Files**: `control_policy.py`, `schemas.py`
 - **Connections**: Called by `src/orchestrator/pipeline.py`. Depends on `SessionRiskState`.
-- **Implementation Detail**: Implements the mathematical framework of **Conformal Prediction**. It maps the `FinalRiskReport` scores against `tau_low` and `tau_high` defined in `use_case_policies.yaml`. It calculates `coverage_pct` (how much of the text is broken) to decide whether to attempt a surgical `MODIFY` repair or force a full `REGENERATE`. It also intercepts triggers from `session_state` to override single-turn decisions.
+- **Implementation Detail**: Implements the mathematical framework of **Conformal Prediction**. It maps the `FinalRiskReport` scores against `tau_low` and `tau_high` defined in `use_case_policies.yaml`. It calculates `coverage_pct` (how much of the text is broken) to decide whether to attempt a surgical `MODIFY` repair or force a full `REGENERATE`. It also intercepts triggers from `session_state` to override single-turn decisions, and dynamically scales compute budgets/gracefully degrades via the `under_verified` circuit breaker fallback (SPEC 11).
 - **SOTA vs Rule-Based**: The *concept* (Conformal Prediction) is **SOTA Statistical Guarantee**. 
 - **Harsh Reality**: Our implementation is mostly rule-based dict lookups. We simulate the calibration via `.yaml` configs and a basic active learning script (`recalibrate.py`), rather than dynamically computing the non-conformity scores on the fly against a real-time data warehouse.
 
