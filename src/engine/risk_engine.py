@@ -5,6 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
+from src.policy.schemas import OverlapGroup
+
 from src.checkers.base import CheckerResult
 from src.cost.cost_monitor import CostMonitorResult
 from src.checkers.performance_checker import PerformanceChecker
@@ -24,7 +26,7 @@ class FinalRiskReport(BaseModel):
     is_blocked: bool
     checker_results: List[Any]  # Can be CheckerResult or CostMonitorResult
     overlap_detected: bool
-    overlap_records: List[OverlapRecord] = Field(default_factory=list)
+    overlap_groups: List[OverlapGroup] = Field(default_factory=list)
     under_verified: bool = False
 
 class RiskEngine:

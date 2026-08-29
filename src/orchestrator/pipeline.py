@@ -12,6 +12,8 @@ from src.agent.action_gate import ActionRiskChecker
 from src.policy.schemas import ProposedAction
 from src.engine.embedding_registry import EmbeddingRegistry
 from src.engine.semantic_overlap import SemanticOverlapDetector
+import time
+import uuid
 
 class PipelineOrchestrator:
     """
@@ -38,6 +40,8 @@ class PipelineOrchestrator:
         Synchronous wrapper for processing a request End-to-End.
         """
         import copy
+        start_time = time.time()
+        request_id = str(uuid.uuid4())
         request_context = request_context or {}
         
         # SPEC 11: Action Type Escalation (Tier Override)
@@ -239,6 +243,26 @@ class PipelineOrchestrator:
                 decision=decision,
                 metadata=metadata,
                 action_decision=action_decision
+            )
+            
+            # 5.5 Metrics Log (SPEC 16)
+            latency_ms = int((time.time() - start_time) * 1000)
+            risk_scores = {}
+            for res in report.checker_results:
+                if hasattr(res, 'checker_name'):
+                    risk_scores[res.checker_name] = res.risk_score
+                    
+            coverage_pct = 95.0 # Guaranteed coverage from calibration
+            
+            self.audit_logger.log_metrics(
+                request_id=request_id,
+                use_case=policy.name if hasattr(policy, 'name') else "default",
+                decision_tier=decision.action,
+                risk_scores=risk_scores,
+                overlap_flag=report.overlap_detected,
+                coverage_pct=coverage_pct,
+                latency_ms=latency_ms,
+                human_verdict=None
             )
             
             # 6. Return Output

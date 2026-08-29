@@ -30,6 +30,11 @@ class AuditLogger:
             with open(self.action_log_file, "a") as f:
                 pass
                 
+        self.metrics_log_file = os.path.join(os.path.dirname(self.log_file), "metrics_log.jsonl")
+        if not os.path.exists(self.metrics_log_file):
+            with open(self.metrics_log_file, "a") as f:
+                pass
+                
     def log(self, response_text: str, report: FinalRiskReport, decision: ControlDecision, metadata: Dict[str, Any] = None, action_decision: ActionDecision = None) -> bool:
         try:
             # We must convert Pydantic models to serializable dicts
@@ -65,6 +70,26 @@ class AuditLogger:
         except Exception as e:
             print(f"[AuditLogger Error] Failed to write to log: {str(e)}")
             # In a production system, logging failure might block the request if compliance is strict
+            return False
+            
+    def log_metrics(self, request_id: str, use_case: str, decision_tier: str, risk_scores: Dict[str, float], overlap_flag: bool, coverage_pct: float, latency_ms: int, human_verdict: str = None) -> bool:
+        try:
+            log_entry = {
+                "request_id": request_id,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "use_case": use_case,
+                "decision_tier": decision_tier,
+                "risk_scores": risk_scores,
+                "overlap_flag": overlap_flag,
+                "coverage_pct": coverage_pct,
+                "latency_ms": latency_ms,
+                "human_verdict": human_verdict
+            }
+            with open(self.metrics_log_file, "a") as f:
+                f.write(json.dumps(log_entry) + "\n")
+            return True
+        except Exception as e:
+            print(f"[AuditLogger Error] Failed to write to metrics log: {str(e)}")
             return False
             
     def get_last_entry(self) -> Dict[str, Any]:

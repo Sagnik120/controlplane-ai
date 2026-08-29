@@ -6,6 +6,8 @@ import uuid
 from .dependencies import get_orchestrator, get_policy, POLICIES
 from src.orchestrator.pipeline import PipelineOrchestrator
 from src.policy.schemas import UseCasePolicy
+import os
+import json
 
 router = APIRouter()
 
@@ -27,6 +29,21 @@ def get_available_policies():
             for pid, policy in POLICIES.items()
         ]
     }
+
+@router.get("/metrics")
+def get_metrics():
+    """Returns the pre-computed metrics summary for the dashboard."""
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+    summary_file = os.path.join(project_root, 'data', 'metrics_summary.json')
+    
+    if not os.path.exists(summary_file):
+        return {"use_cases": {}}
+        
+    try:
+        with open(summary_file, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read metrics: {str(e)}")
 
 @router.post("/chat")
 def chat(request: ChatRequest, orchestrator: PipelineOrchestrator = Depends(get_orchestrator)):
