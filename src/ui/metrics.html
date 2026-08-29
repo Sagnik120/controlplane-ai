@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust & Metrics - ControlPlane-AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .metrics-container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .use-case-section {
+            background: rgba(18, 20, 28, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .use-case-title {
+            font-size: 1.4rem;
+            color: #fff;
+            margin-bottom: 16px;
+            text-transform: capitalize;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .metric-box h4 {
+            font-size: 0.85rem;
+            color: #8b949e;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-box .val {
+            font-size: 1.8rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .val.good { color: #57ff86; }
+        .val.warn { color: #ffab57; }
+        .val.bad { color: #ff5757; }
+
+        .bar-chart-container {
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #c9d1d9;
+        }
+
+        .bar-label {
+            width: 100px;
+            font-weight: 500;
+        }
+
+        .bar-wrapper {
+            flex-grow: 1;
+            background: rgba(0,0,0,0.3);
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 0 12px;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 6px;
+        }
+
+        .bar-ALLOW { background: #57ff86; }
+        .bar-MODIFY { background: #57a6ff; }
+        .bar-REGENERATE { background: #ffab57; }
+        .bar-HUMAN { background: #ff5757; }
+        .bar-BLOCK { background: #ff3333; }
+
+        .nav-links {
+            margin-bottom: 24px;
+        }
+        
+        .nav-links a {
+            color: #57a6ff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .headline-section {
+            background: linear-gradient(135deg, rgba(87, 166, 255, 0.1), rgba(87, 255, 134, 0.1));
+            border: 1px solid rgba(87, 166, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+        
+        .headline-title {
+            font-size: 1.2rem;
+            color: #c9d1d9;
+            margin-bottom: 8px;
+        }
+        
+        .headline-val {
+            font-size: 3rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            color: #57ff86;
+        }
+        
+        .headline-sub {
+            font-size: 0.9rem;
+            color: #8b949e;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-mesh">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    
+    <main class="dashboard-container" style="max-width: 1000px; margin: 0 auto;">
+        <header>
+            <div class="logo">
+                <div class="pulse-ring" style="border-color: #57a6ff;"></div>
+                <h1>Trust <span class="highlight">Metrics</span></h1>
+            </div>
+            <p class="subtitle">Empirical Validation of Conformal Guarantees</p>
+        </header>
+
+        <div class="nav-links">
+            <a href="index.html">← Back to Pipeline Orchestrator</a>
+        </div>
+        
+        <div id="metrics-root">
+            <div style="text-align: center; padding: 40px; color: #8b949e;">Loading metrics...</div>
+        </div>
+
+    </main>
+    <script src="metrics.js"></script>
+</body>
+</html>
