@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from src.engine.risk_engine import FinalRiskReport
-from src.policy.schemas import ControlDecision
+from src.policy.schemas import ControlDecision, ActionDecision
 
 class AuditLogger:
     """
@@ -25,7 +25,12 @@ class AuditLogger:
             with open(self.log_file, "a") as f:
                 pass # Just create empty file
                 
-    def log(self, response_text: str, report: FinalRiskReport, decision: ControlDecision, metadata: Dict[str, Any] = None) -> bool:
+        self.action_log_file = os.path.join(os.path.dirname(self.log_file), "action_decisions.jsonl")
+        if not os.path.exists(self.action_log_file):
+            with open(self.action_log_file, "a") as f:
+                pass
+                
+    def log(self, response_text: str, report: FinalRiskReport, decision: ControlDecision, metadata: Dict[str, Any] = None, action_decision: ActionDecision = None) -> bool:
         try:
             # We must convert Pydantic models to serializable dicts
             log_entry = {
@@ -45,6 +50,15 @@ class AuditLogger:
                 queue_file = os.path.join(os.path.dirname(self.log_file), "human_review_queue.jsonl")
                 with open(queue_file, "a") as f:
                     f.write(json.dumps(log_entry) + "\n")
+                    
+            if action_decision:
+                action_log_entry = {
+                    "timestamp": log_entry["timestamp"],
+                    "action_decision": action_decision.model_dump(),
+                    "metadata": metadata or {}
+                }
+                with open(self.action_log_file, "a") as f:
+                    f.write(json.dumps(action_log_entry) + "\n")
                 
             return True
             

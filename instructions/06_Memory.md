@@ -100,3 +100,32 @@
 - What is still stubbed/incomplete: None.
 - Any deviation from the instruction files, and why: None.
 - Next immediate step: Wait for instruction.
+
+your existing "Spec Upgrades (Post-Phase-9)" entries, as a new dated entry.)
+[Stage 3 Kickoff — Instruction Files Restructured] — DONE
+What was built: N/A (documentation restructure, not code). Deleted specs/SPEC_01_*.md, specs/SPEC_02_*.md, specs/SPEC_03_*.md, and the old specs/SPEC_TRACKER.md. Replaced with a new specs/SPEC_TRACKER.md listing the 14 Stage 3 upgrade targets (numbered #04-#17) as problem-statements-only, no method prescribed. Updated 00_ANTIGRAVITY_START_HERE.md, 00B_SPEC_UPGRADES.md, 08_Folder_Structure.md, 09_Progress_Tracker.md to reflect Stage 3.
+What was tested and confirmed by human: N/A — instruction-file change only.
+What is still stubbed/incomplete: All 14 Stage 3 items are [ ] — no SPEC_NN files written yet. Awaiting Sagnik's research on item #04 (real REGENERATE) first, per SPEC_TRACKER.md priority order.
+Any deviation from the instruction files, and why: SPEC_01-03's implementation-detail files were deleted (outcomes preserved as summaries in SPEC_TRACKER.md section 1 and in this file's prior entries above) to stop the agent re-reading closed work as if it were active.
+Next immediate step: wait for specs/SPEC_04_<slug>.md (or whichever item Sagnik researches first) before writing any Stage 3 implementation code.
+
+## [Spec 12 — Semantic Overlap] — DONE
+- What was built: Rewrote `SemanticOverlapDetector` to use `all-MiniLM-L6-v2` cosine similarity and character IoU to group overlapping flagged spans together into `OverlapGroup` objects, applying noisy-OR escalation.
+- What was tested and confirmed by human: Overlap triggers properly.
+- What is still stubbed/incomplete: Cross-encoder reranking.
+- Any deviation from the instruction files, and why: Replaced CrossEncoder with Bi-Encoder for latency.
+- Next immediate step: Spec 13.
+
+## [Spec 13 — ACI Live Feedback] — DONE
+- What was built: `AdaptiveCalibrator` and `FeedbackConsumer` for real-time live Conformal Inference based on human override feedback.
+- What was tested and confirmed by human: `test_spec_13_aci_feedback.py` confirms boundaries shift correctly.
+- What is still stubbed/incomplete: Human admission congestion control.
+- Any deviation from the instruction files, and why: Dropped human congestion control (queue math) per user request to defer to v2.
+- Next immediate step: Spec 14.
+
+## [Spec 14 — Agent/Tool-Call Risk Gating] — DONE
+- What was built: `ActionRiskChecker` Tier-0 catalog gate and Tier-1 LLM judge that separates action block decisions from text decisions, leveraging `SemanticOverlapDetector` for context-aware risk matching.
+- What was tested and confirmed by human: `demo_spec_14_actions.py` confirms overlap formatting injects correctly and short-circuits on catalog blast_radius.
+- What is still stubbed/incomplete: Nothing.
+- Any deviation from the instruction files, and why: JSON flattening and lower cosine threshold needed for embedder to match actions.
+- Next immediate step: Wait for instruction.

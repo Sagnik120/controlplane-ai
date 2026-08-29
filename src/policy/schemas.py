@@ -115,6 +115,15 @@ class FinalRiskReport(BaseModel):
     action: str = "ALLOW"
     under_verified: bool = False
 
+class ProposedAction(BaseModel):
+    name: str
+    arguments: Dict[str, Any]
+    char_offset_in_response: Optional[int] = None
+
+class ActionDecision(BaseModel):
+    action: Literal["EXECUTE", "HOLD", "BLOCK"]
+    reasoning: str
+
 class ControlDecision(BaseModel):
     """
     The final output of the ControlPolicy module.

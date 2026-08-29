@@ -1,0 +1,19 @@
+send_email:
+  reversibility: "irreversible"
+  blast_radius: "variable"
+  requires_confirmation_by_default: true
+
+update_record:
+  reversibility: "reversible_with_audit"
+  blast_radius: "single_entity"
+  requires_confirmation_by_default: true
+
+update_record_bulk:
+  reversibility: "reversible_with_audit"
+  blast_radius: "many_entities"
+  requires_confirmation_by_default: true
+
+read_record:
+  reversibility: "reversible"
+  blast_radius: "single_entity"
+  requires_confirmation_by_default: false
