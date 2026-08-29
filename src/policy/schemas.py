@@ -39,6 +39,10 @@ class UseCasePolicy(BaseModel):
     latency_budget_ms: Optional[int] = None
     checker_budget: CheckerBudgetProfile = Field(default_factory=CheckerBudgetProfile)
     
+    # SPEC 12 Overlap Thresholds
+    char_iou_threshold: float = 0.3
+    cosine_threshold: float = 0.62
+    
     # Global threshold: if the FinalRiskReport's overall_risk_score > this, block it.
     max_overall_risk: float = 0.8
     
@@ -87,12 +91,27 @@ class UseCasePolicy(BaseModel):
     tier0_uncertain_band_high: float = 0.80
     regenerate_temperature: float = 0.2
 
+class FlaggedSpan(BaseModel):
+    checker_name: str
+    text: str
+    char_start: int
+    char_end: int
+    risk_score: float
+    risk_reason: str
+    embedding: Optional[List[float]] = None
+
+class OverlapGroup(BaseModel):
+    spans: List[FlaggedSpan]
+    aggregated_risk: float
+    multiplier_applied: float
+    reason: str
+
 class FinalRiskReport(BaseModel):
     overall_risk_score: float = 0.0
     is_blocked: bool = False
     checker_results: List[Any] = Field(default_factory=list)
     overlap_detected: bool = False
-    overlap_records: List[Any] = Field(default_factory=list)
+    overlap_groups: List[OverlapGroup] = Field(default_factory=list)
     action: str = "ALLOW"
     under_verified: bool = False
 
