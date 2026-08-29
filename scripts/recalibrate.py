@@ -7,10 +7,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.feedback.feedback_store import FeedbackStore
 from scripts.calibrate_thresholds import main as run_calibration
+from src.policy.adaptive_calibration import AdaptiveCalibrator
 
 def main():
     print("=======================================================================")
-    print("🔄 Recalibration Loop: Active Learning from Human Feedback")
+    print("🔄 Recalibration Loop & ACI Offline Auditor")
     print("=======================================================================")
     
     store = FeedbackStore()
@@ -42,7 +43,7 @@ def main():
     diffs, total_samples = run_calibration(return_diffs=True)
     
     print("\n=======================================================================")
-    print("📊 Threshold Evolution Summary")
+    print("📊 Threshold Evolution & Drift Audit")
     print("=======================================================================")
     
     # Log to history
@@ -58,24 +59,34 @@ def main():
     with open(history_file, "a") as f:
         f.write(json.dumps(history_entry) + "\n")
         
+    calibrator = AdaptiveCalibrator()
+        
     for uc, uc_diffs in diffs.items():
         print(f"\nPolicy: {uc}")
         for dim, shifts in uc_diffs.items():
             old_l, new_l = shifts["old_tau_low"], shifts["new_tau_low"]
             old_h, new_h = shifts["old_tau_high"], shifts["new_tau_high"]
             
-            # Print only if they changed
-            if old_l != new_l or old_h != new_h:
-                trend_l = "relaxed" if (isinstance(old_l, float) and new_l > old_l) else "tightened" if (isinstance(old_l, float) and new_l < old_l) else "changed"
-                trend_h = "relaxed" if (isinstance(old_h, float) and new_h > old_h) else "tightened" if (isinstance(old_h, float) and new_h < old_h) else "changed"
-                
-                print(f"  - {dim.ljust(12)}:")
-                if old_l != new_l:
-                    print(f"    τ_low : {old_l} -> {new_l} ({trend_l})")
-                if old_h != new_h:
-                    print(f"    τ_high: {old_h} -> {new_h} ({trend_h})")
+            # Fetch live thresholds from ACI loop
+            live_thresholds = calibrator.get_active_thresholds(uc, dim)
+            live_tau_h = live_thresholds.get("tau_high", new_h)
+            
+            # Print only if they changed in batch or drifted from live
+            trend_l = "relaxed" if (isinstance(old_l, float) and new_l > old_l) else "tightened" if (isinstance(old_l, float) and new_l < old_l) else "changed"
+            trend_h = "relaxed" if (isinstance(old_h, float) and new_h > old_h) else "tightened" if (isinstance(old_h, float) and new_h < old_h) else "changed"
+            
+            print(f"  - {dim.ljust(12)}:")
+            if old_l != new_l:
+                print(f"    τ_low (batch) : {old_l} -> {new_l} ({trend_l})")
+            if old_h != new_h:
+                print(f"    τ_high (batch): {old_h} -> {new_h} ({trend_h})")
+            
+            drift = abs(new_h - live_tau_h)
+            print(f"    τ_high (live) : {live_tau_h:.3f} | Batch vs Live Drift: {drift:.3f}")
+            if drift > 0.10:
+                print(f"    ⚠️ WARNING: Live ACI estimate ({live_tau_h}) has drifted implausibly far from batch ({new_h}). Manual review recommended.")
     
-    print("\n✅ Recalibration cycle complete. Audit trail updated in data/calibration_history.jsonl.")
+    print("\n✅ Recalibration cycle & audit complete. Audit trail updated in data/calibration_history.jsonl.")
 
 if __name__ == "__main__":
     main()

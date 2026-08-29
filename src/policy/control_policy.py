@@ -2,6 +2,7 @@ from typing import Optional, Any
 from src.engine.risk_engine import FinalRiskReport
 from src.policy.schemas import UseCasePolicy, ControlDecision
 from src.session.session_state import SessionRiskState
+from src.policy.adaptive_calibration import AdaptiveCalibrator
 
 class ControlPolicy:
     """
@@ -10,8 +11,10 @@ class ControlPolicy:
     """
     
     def evaluate(self, report: FinalRiskReport, policy: UseCasePolicy, response_text: str = "", session_state: Optional[SessionRiskState] = None) -> ControlDecision:
-        # Load calibrated thresholds
-        thresholds = policy.calibrated_thresholds
+        # Access live adaptive calibrator singleton
+        calibrator = AdaptiveCalibrator()
+        # Fallback static thresholds in case calibrator is missing data
+        static_thresholds = policy.calibrated_thresholds
         
         highest_severity = "ALLOW"
         triggering_dim = None
@@ -24,14 +27,17 @@ class ControlPolicy:
         
         spans = []
         
-        # 1. Check each dimension against its calibrated thresholds
+            # 1. Check each dimension against its calibrated thresholds
         for checker_result in report.checker_results:
             dim = checker_result.checker_name
             score = checker_result.risk_score
             
+            # Use live dynamic thresholds from ACI
+            live_thresholds = calibrator.get_active_thresholds(policy.name, dim)
+            
             # Default uncalibrated thresholds if not present
-            tau_low = thresholds.get(dim, {}).get("tau_low", policy.max_overall_risk)
-            tau_high = thresholds.get(dim, {}).get("tau_high", 1.0)
+            tau_low = live_thresholds.get("tau_low", static_thresholds.get(dim, {}).get("tau_low", policy.max_overall_risk))
+            tau_high = live_thresholds.get("tau_high", static_thresholds.get(dim, {}).get("tau_high", 1.0))
             
             severity = "ALLOW"
             if score >= tau_high:

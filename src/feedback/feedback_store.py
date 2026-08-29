@@ -34,8 +34,9 @@ class FeedbackStore:
             verdict = item.get("metadata", {}).get("human_verdict")
             ts = item.get("timestamp")
             
-            # We only append confirmed risks to the known-bad distribution
-            if verdict == "confirm_risk" and ts not in existing_timestamps:
+            # We only append confirmed risks to the known-bad distribution.
+            # In the NPO taxonomy, a "like" on an escalation means the human confirms it was indeed a risk.
+            if verdict == "like" and ts not in existing_timestamps:
                 # Extract risk scores directly from the report
                 report = item.get("risk_report", {})
                 checker_results = report.get("checker_results", [])
