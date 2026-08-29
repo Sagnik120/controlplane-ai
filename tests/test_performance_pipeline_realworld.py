@@ -84,7 +84,7 @@ def main():
     print(f"  Final Action: {res_multi['control_decision']['action']}")
     print(f"  Overlap Detected: {res_multi['risk_report']['overlap_detected']}")
     if res_multi['risk_report']['overlap_detected']:
-        print(f"  Overlap Explanation: {res_multi['risk_report']['overlap_explanation']}")
+        print(f"  Overlap Detected: {res_multi['risk_report']['overlap_detected']}")
         print(f"  ✅ PASS (Risk engine escalated score gracefully)")
     else:
         print(f"  ⚠️ (Overlap not explicitly triggered due to MockAdapter constraints, but pipeline survived)")

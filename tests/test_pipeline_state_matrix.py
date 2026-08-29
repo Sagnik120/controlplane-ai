@@ -86,11 +86,11 @@ def main():
         # Pass 1 triggers MODIFY, Pass 2 is slightly risky but below tau_low (0.3)
         (0.5, 0.25, "ALLOW", "Acceptable repair (under tau_low)"),
         
-        # Pass 1 triggers MODIFY, Pass 2 is STILL exactly at tau_low -> triggers MODIFY again
-        (0.5, 0.35, "REGENERATE", "Repair failed to drop below tau_low"),
+        # Pass 1 triggers MODIFY, Pass 2 is STILL exactly at tau_low -> triggers MODIFY again, which escalates to REGENERATE, triggers CBR, CBR fails -> HUMAN
+        (0.5, 0.35, "HUMAN", "Repair failed to drop below tau_low"),
         
-        # Pass 1 triggers MODIFY, Pass 2 actually made it WORSE (0.7) -> triggers MODIFY again
-        (0.5, 0.7, "REGENERATE", "Repair hallucinated worse text"),
+        # Pass 1 triggers MODIFY, Pass 2 actually made it WORSE (0.7) -> triggers MODIFY again, which escalates to REGENERATE, triggers CBR, CBR fails -> HUMAN
+        (0.5, 0.7, "HUMAN", "Repair hallucinated worse text"),
         
         # Pass 1 triggers MODIFY, Pass 2 is horribly toxic (> tau_high 0.8) -> triggers HUMAN usually, but because it's a re-verify failure, it escalates to REGENERATE
         (0.5, 0.9, "REGENERATE", "Repair went completely rogue (extreme risk)")

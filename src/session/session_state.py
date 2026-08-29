@@ -3,10 +3,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import numpy as np
 
-try:
-    from sentence_transformers import SentenceTransformer
-except ImportError:
-    SentenceTransformer = None
+from src.engine.embedding_registry import EmbeddingRegistry
 
 class SessionRiskState(BaseModel):
     session_id: str
@@ -27,13 +24,9 @@ class SessionRiskState(BaseModel):
     session_risk_trend: str = "stable"
 
 class SessionStore:
-    def __init__(self):
+    def __init__(self, embedder=None):
         self.sessions: Dict[str, SessionRiskState] = {}
-        if SentenceTransformer:
-            # Load lightweight model for drift
-            self.model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
-        else:
-            self.model = None
+        self.model = embedder if embedder else EmbeddingRegistry.get_embedder()
 
     def get_or_create(self, session_id: str) -> SessionRiskState:
         if session_id not in self.sessions:
