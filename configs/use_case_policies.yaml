@@ -14,6 +14,8 @@ customer_support_chatbot:
       check_frequency: "every_4th_window"
     regenerate:
       max_attempts: 1
+  char_iou_threshold: 0.3
+  cosine_threshold: 0.62
   max_overall_risk: 0.8
   checker_thresholds:
     performance: 0.6
@@ -78,6 +80,8 @@ internal_knowledge_assistant:
       check_frequency: "every_window"
     regenerate:
       max_attempts: 2
+  char_iou_threshold: 0.3
+  cosine_threshold: 0.62
   max_overall_risk: 0.7
   checker_thresholds:
     performance: 0.4
