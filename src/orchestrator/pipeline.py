@@ -38,6 +38,31 @@ class PipelineOrchestrator:
     def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None, request_context: Optional[dict] = None) -> dict:
         """
         Synchronous wrapper for processing a request End-to-End.
+        Delegates to process_request_async.
+        """
+        import asyncio
+        import threading
+        
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+            
+        if loop and loop.is_running():
+            result = None
+            def run_in_thread():
+                nonlocal result
+                result = asyncio.run(self.process_request_async(prompt, policy, user_id, session_id, request_context))
+            t = threading.Thread(target=run_in_thread)
+            t.start()
+            t.join()
+            return result
+        else:
+            return asyncio.run(self.process_request_async(prompt, policy, user_id, session_id, request_context))
+
+    async def process_request_async(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None, request_context: Optional[dict] = None) -> dict:
+        """
+        Synchronous wrapper for processing a request End-to-End.
         """
         import copy
         start_time = time.time()
@@ -49,9 +74,8 @@ class PipelineOrchestrator:
         proposed_action_dict = request_context.get("proposed_action")
         
         if action_type in ["refund", "account_change", "delete_data", "execute_trade"] or proposed_action_dict:
-            print(f"   [Pipeline] Escalating UseCasePolicy consequence level to 'high' due to action context.")
+            print(f"   [Pipeline] Action context detected. Extending latency budget.")
             policy = policy.model_copy(deep=True) if hasattr(policy, 'model_copy') else copy.deepcopy(policy)
-            policy.consequence_level = "high"
             if policy.latency_budget_ms and policy.latency_budget_ms < 3000:
                 policy.latency_budget_ms = 3000 # Give it more time to run heavier checks
                 
@@ -66,7 +90,7 @@ class PipelineOrchestrator:
                 llm_output = "[LLM Returned Empty String]"
                 
             # 2. Risk Engine Evaluation
-            report = self.risk_engine.evaluate_response(
+            report = await self.risk_engine.evaluate_response_async(
                 llm_output,
                 prompt=prompt,
                 adapter=self.adapter,
@@ -121,7 +145,7 @@ class PipelineOrchestrator:
                 if was_repaired:
                     # RE-VERIFY: Run risk engine again on the spliced text
                     print(f"   [Pipeline] Re-verifying repaired text...")
-                    reverify_report = self.risk_engine.evaluate_response(
+                    reverify_report = await self.risk_engine.evaluate_response_async(
                         repaired_text,
                         prompt=prompt,
                         adapter=self.adapter,
@@ -171,9 +195,9 @@ class PipelineOrchestrator:
                         )
                         
                         # Re-verify the spliced result
-                        spliced_result = decision.clean_prefix + " " + new_text
+                        spliced_result = decision.clean_prefix.rstrip() + " " + new_text.lstrip()
                         
-                        reverify_report = self.risk_engine.evaluate_response(
+                        reverify_report = await self.risk_engine.evaluate_response_async(
                             spliced_result,
                             prompt=prompt,
                             adapter=self.adapter,
@@ -209,24 +233,12 @@ class PipelineOrchestrator:
                 proposed_action = ProposedAction(**proposed_action_dict)
                 print(f"   [Pipeline] Action Gate evaluating proposed tool call: {proposed_action.name}")
                 
-                # We need to run the async action checker synchronously for this pipeline
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                if loop.is_running():
-                    # Fallback for environments with active loop
-                    import nest_asyncio
-                    nest_asyncio.apply()
-                    
-                action_decision = loop.run_until_complete(self.action_checker.run(
+                action_decision = await self.action_checker.run(
                     proposed_action=proposed_action, 
                     context=report, 
                     adapter=self.adapter, 
                     policy=policy
-                ))
+                )
                 
                 print(f"   [Pipeline] Action Decision: {action_decision.action} ({action_decision.reasoning})")
 

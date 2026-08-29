@@ -8,6 +8,7 @@ from src.feedback.feedback_consumer import FeedbackConsumer
 
 @pytest.fixture
 def mock_calibrator():
+    AdaptiveCalibrator._instance = None
     calibrator = AdaptiveCalibrator(step_size=0.05, min_alpha=0.01, max_alpha=0.5)
     # Clear out any previous state to ensure clean test
     calibrator.alphas = {}

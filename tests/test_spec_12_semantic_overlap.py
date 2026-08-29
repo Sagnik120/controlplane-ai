@@ -116,5 +116,18 @@ def test_same_checker_not_grouped(overlap_detector):
     ]
     
     groups = overlap_detector.find_overlaps(spans, char_iou_threshold=0.3, cosine_threshold=0.62)
-    
     assert len(groups) == 0, "Should not group identical checkers to prevent self-escalation"
+
+def test_noisy_or_3_way(overlap_detector):
+    """Test that Noisy-OR correctly aggregates 3 overlapping spans from different checkers."""
+    spans = [
+        FlaggedSpan(checker_name="performance", text="Shared text", char_start=0, char_end=11, risk_score=0.4, risk_reason="hallucination"),
+        FlaggedSpan(checker_name="pii", text="Shared text", char_start=0, char_end=11, risk_score=0.5, risk_reason="PERSON"),
+        FlaggedSpan(checker_name="safety", text="Shared text", char_start=0, char_end=11, risk_score=0.6, risk_reason="safety_violation")
+    ]
+    groups = overlap_detector.find_overlaps(spans, char_iou_threshold=0.3, cosine_threshold=0.99)
+    assert len(groups) == 1, "Should find 1 overlap group containing all 3 spans"
+    group = groups[0]
+    assert len(group.spans) == 3
+    # Noisy-OR: 1 - (1 - 0.4) * (1 - 0.5) * (1 - 0.6) = 1 - (0.6 * 0.5 * 0.4) = 1 - 0.12 = 0.88
+    assert group.aggregated_risk == 0.88

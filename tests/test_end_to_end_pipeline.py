@@ -36,6 +36,17 @@ class DeepMockRiskEngine(RiskEngine):
             overlap_detected=False
         )
 
+    async def evaluate_response_async(self, response_text: str, **kwargs):
+        self.eval_count += 1
+        from src.engine.risk_engine import FinalRiskReport
+        return FinalRiskReport(
+            overall_risk_score=0.9 if self.mock_results else 0.0,
+            is_blocked=False,
+            checker_results=self.mock_results,
+            overlap_detected=False
+        )
+
+
 def print_header(title):
     print("\n" + "="*80)
     print(f"🚀 {title}")
@@ -49,6 +60,11 @@ def main():
     policy_engine = ControlPolicy()
     logger = AuditLogger("data/e2e_pipeline_log.jsonl")
     
+    class MockCalibrator:
+        def get_active_thresholds(self):
+            return None # Force ControlPolicy to use policy.calibrated_thresholds
+    
+    policy_engine.calibrator = None
     orchestrator = PipelineOrchestrator(adapter, risk_engine, policy_engine, logger)
     
     # We create a comprehensive policy covering all bounds
@@ -67,6 +83,12 @@ def main():
         session_cumulative_pii_threshold=2,
         session_escalation_action="HUMAN"
     )
+
+    
+    # Force the calibrator to return exactly what the policy defines
+    from src.policy.adaptive_calibration import AdaptiveCalibrator
+    calibrator = AdaptiveCalibrator()
+    calibrator.get_active_thresholds = lambda use_case, dim: policy.calibrated_thresholds.get(dim, {})
 
     tests_passed = 0
     tests_total = 0
@@ -93,7 +115,7 @@ def main():
     risk_engine.mock_results = [
         CheckerResult(checker_name="safety", risk_score=0.5, explanation="Toxicity", entities=[{"text": "Initial mock response"}])
     ]
-    def eval_override_modify(response_text, **kwargs):
+    async def eval_override_modify(response_text, **kwargs):
         risk_engine.eval_count += 1
         from src.engine.risk_engine import FinalRiskReport
         if risk_engine.eval_count == 1:
@@ -101,14 +123,14 @@ def main():
         else: # Repair succeeds
             return FinalRiskReport(overall_risk_score=0.0, is_blocked=False, checker_results=[], overlap_detected=False)
             
-    risk_engine.evaluate_response = eval_override_modify
+    risk_engine.evaluate_response_async = eval_override_modify
     res = orchestrator.process_request("Tell me a toxic joke", policy)
     
     if res["control_decision"]["action"] == "ALLOW" and "surgically repaired" in res["final_output"]:
         print("  ✅ PASS: Successfully sliced out toxic text, repaired via LLM, and safely released.")
         tests_passed += 1
     else:
-        print(f"  ❌ FAIL: Expected SILENT REPAIR to ALLOW, got {res['control_decision']['action']}")
+        print(f"  ❌ FAIL: Expected SILENT REPAIR to ALLOW, got {res['control_decision']['action']} | Reason: {res.get('risk_report', {}).get('checker_results', [{}])[0].get('explanation')}")
 
     # -------------------------------------------------------------------------
     # Test 3: Moderate PII Risk -> MODIFY (Presidio Anonymizer)
@@ -119,7 +141,7 @@ def main():
     risk_engine.mock_results = [
         CheckerResult(checker_name="pii", risk_score=0.5, explanation="PII", entities=[{"text": "Initial mock response", "entity_type": "SSN"}])
     ]
-    def eval_override_pii(response_text, **kwargs):
+    async def eval_override_pii(response_text, **kwargs):
         risk_engine.eval_count += 1
         from src.engine.risk_engine import FinalRiskReport
         if risk_engine.eval_count == 1:
@@ -127,14 +149,14 @@ def main():
         else:
             return FinalRiskReport(overall_risk_score=0.0, is_blocked=False, checker_results=[], overlap_detected=False)
             
-    risk_engine.evaluate_response = eval_override_pii
+    risk_engine.evaluate_response_async = eval_override_pii
     res = orchestrator.process_request("Here is my SSN", policy)
     
     if res["control_decision"]["action"] == "ALLOW" and "<SSN>" in res["final_output"]:
         print("  ✅ PASS: Successfully routed PII to deterministic AnonymizerEngine and released.")
         tests_passed += 1
     else:
-        print(f"  ❌ FAIL: Expected SILENT REPAIR to ALLOW with <SSN>, got {res['final_output']}")
+        print(f"  ❌ FAIL: Expected SILENT REPAIR to ALLOW with <SSN>, got {res['final_output']} | Reason: {res['control_decision'].get('reasoning')}")
 
     # -------------------------------------------------------------------------
     # Test 4: Failed Repair -> REGENERATE
@@ -145,12 +167,12 @@ def main():
     risk_engine.mock_results = [
         CheckerResult(checker_name="safety", risk_score=0.5, explanation="Toxicity", entities=[{"text": "Initial mock response"}])
     ]
-    def eval_override_fail(response_text, **kwargs):
+    async def eval_override_fail(response_text, **kwargs):
         from src.engine.risk_engine import FinalRiskReport
         # Always return risk (simulate LLM failing to repair properly)
         return FinalRiskReport(overall_risk_score=0.5, is_blocked=False, checker_results=risk_engine.mock_results, overlap_detected=False)
             
-    risk_engine.evaluate_response = eval_override_fail
+    risk_engine.evaluate_response_async = eval_override_fail
     res = orchestrator.process_request("Toxic request", policy)
     
     if res["control_decision"]["action"] == "REGENERATE" and "REPAIR FAILED RE-VERIFICATION" in res["control_decision"]["reasoning"]:
@@ -164,7 +186,7 @@ def main():
     # -------------------------------------------------------------------------
     tests_total += 1
     print("\n▶️ Case 5: High Risk (Risk >= tau_high) -> HUMAN ESCALATION")
-    def eval_override_human(response_text, **kwargs):
+    async def eval_override_human(response_text, **kwargs):
         from src.engine.risk_engine import FinalRiskReport
         return FinalRiskReport(
             overall_risk_score=0.9, 
@@ -172,7 +194,7 @@ def main():
             checker_results=[CheckerResult(checker_name="safety", risk_score=0.9, explanation="Extreme Risk")], 
             overlap_detected=False
         )
-    risk_engine.evaluate_response = eval_override_human
+    risk_engine.evaluate_response_async = eval_override_human
     res = orchestrator.process_request("Extreme toxic request", policy)
     
     if res["control_decision"]["action"] == "HUMAN" and "calibrated τ_high" in res["control_decision"]["reasoning"]:
@@ -189,10 +211,10 @@ def main():
     sid = "e2e_session_test"
     
     # Clean up evaluation override so we just inject PII
-    def eval_override_session(response_text, **kwargs):
+    async def eval_override_session(response_text, **kwargs):
         from src.engine.risk_engine import FinalRiskReport
         return FinalRiskReport(overall_risk_score=0.1, is_blocked=False, checker_results=risk_engine.mock_results, overlap_detected=False)
-    risk_engine.evaluate_response = eval_override_session
+    risk_engine.evaluate_response_async = eval_override_session
     
     # Turn 1: PERSON
     risk_engine.mock_results = [CheckerResult(checker_name="pii", risk_score=0.1, explanation="low", entities=[{"entity_type": "PERSON", "text": "John"}])]

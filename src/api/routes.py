@@ -46,7 +46,7 @@ def get_metrics():
         raise HTTPException(status_code=500, detail=f"Failed to read metrics: {str(e)}")
 
 @router.post("/chat")
-def chat(request: ChatRequest, orchestrator: PipelineOrchestrator = Depends(get_orchestrator)):
+async def chat(request: ChatRequest, orchestrator: PipelineOrchestrator = Depends(get_orchestrator)):
     """
     Main endpoint for generating text.
     Passes the prompt and the requested Use-Case Policy into the PipelineOrchestrator.
@@ -59,7 +59,7 @@ def chat(request: ChatRequest, orchestrator: PipelineOrchestrator = Depends(get_
     session_id = request.session_id if request.session_id else str(uuid.uuid4())
     
     # Process the request end-to-end
-    result_dict = orchestrator.process_request(prompt=request.prompt, policy=policy, user_id="demo_user", session_id=session_id)
+    result_dict = await orchestrator.process_request_async(prompt=request.prompt, policy=policy, user_id="demo_user", session_id=session_id)
     
     # Return session_id to client so they can maintain session
     result_dict["session_id"] = session_id

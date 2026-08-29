@@ -103,10 +103,15 @@ def test_pipeline_decision_separation(tmp_path):
             )
             
     class DummyControlPolicy:
+        def __init__(self):
+            self.evals = 0
         def evaluate(self, report, *args, **kwargs):
-            # Text is REGENERATE, Action will independently be BLOCKed
+            self.evals += 1
             from src.policy.schemas import ControlDecision
-            return ControlDecision(action="REGENERATE", reasoning="Regenerating text", clean_prefix="Sorry", failed_span="$340")
+            if self.evals == 1:
+                return ControlDecision(action="REGENERATE", reasoning="Regenerating text", clean_prefix="Sorry", failed_span="$340")
+            else:
+                return ControlDecision(action="ALLOW", reasoning="Text is now clean")
             
     class DummyCheckpointMgr:
         def commit(self, *args, **kwargs): pass

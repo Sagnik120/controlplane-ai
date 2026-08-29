@@ -24,9 +24,12 @@ class MockRegeneratingAdapter(MockAdapter):
         
     def generate_once(self, prompt: str, temperature: float = 1.0) -> str:
         self.call_count += 1
-        # The CBR prompt will pass the clean prefix and ask for a continuation.
-        # We just return a safe continuation.
-        if "Sentence 1" in prompt and "Sentence 3 contains" in prompt:
+        prompt_lower = prompt.lower()
+        if "generate 2-4 short, independent, checkable" in prompt_lower:
+            return "Is the third sentence safe?"
+        if "answer the following question" in prompt_lower:
+            return "No, it contains dangerous hallucinated instructions."
+        if "continue the response below" in prompt_lower:
             return "Sentence 3 is now a safe and verified conclusion."
         return "Fallback safe text."
 
@@ -64,6 +67,11 @@ class MockCBRRiskEngine(RiskEngine):
 
 class TestSpec09CBR(unittest.TestCase):
     def setUp(self):
+        from src.policy.adaptive_calibration import AdaptiveCalibrator
+        AdaptiveCalibrator._instance = None
+        # Mock get_active_thresholds to return {} so the policy's static thresholds are used instead of real file data
+        AdaptiveCalibrator.get_active_thresholds = lambda self, uc, dim: {}
+        
         self.adapter = MockRegeneratingAdapter()
         self.risk_engine = MockCBRRiskEngine()
         self.control_policy = ControlPolicy()
@@ -94,7 +102,7 @@ class TestSpec09CBR(unittest.TestCase):
         self.assertTrue(expected_prefix in res["final_output"], "Clean prefix was not preserved!")
         self.assertTrue(expected_tail in res["final_output"], "Regenerated tail was not appended!")
         self.assertFalse("Sentence 3 contains dangerous" in res["final_output"], "The dangerous sentence leaked!")
-        self.assertEqual(self.adapter.call_count, 1, "Should have attempted regeneration exactly once.")
+        self.assertEqual(self.adapter.call_count, 3, "Should have attempted regeneration steps (Diagnose, Verify, Resample).")
 
 if __name__ == '__main__':
     unittest.main()
