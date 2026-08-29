@@ -40,13 +40,22 @@ class ControlPolicy:
             tau_high = live_thresholds.get("tau_high", static_thresholds.get(dim, {}).get("tau_high", 1.0))
             
             severity = "ALLOW"
-            if score >= tau_high:
+            if getattr(checker_result, 'is_error', False):
+                severity = "BLOCK"
+            elif score >= tau_high:
                 severity = "HUMAN"
             elif score >= tau_low:
                 severity = "NEEDS_REPAIR"
                 
             # Promote severity
-            if severity == "HUMAN":
+            if severity == "BLOCK":
+                highest_severity = "BLOCK"
+                triggering_dim = dim
+                triggering_score = score
+                active_tau_low = tau_low
+                active_tau_high = tau_high
+                break # BLOCK is max severity, short-circuit
+            elif severity == "HUMAN" and highest_severity != "BLOCK":
                 highest_severity = "HUMAN"
                 triggering_dim = dim
                 triggering_score = score
@@ -96,6 +105,7 @@ class ControlPolicy:
         # 3. Resolve NEEDS_REPAIR into MODIFY or REGENERATE
         action = highest_severity
         target_spans = None
+        
         if action == "NEEDS_REPAIR":
             total_len = len(response_text) if response_text else 100
             span_len = sum(len(s.get("text", "")) for s in spans) if spans else 0
@@ -107,6 +117,8 @@ class ControlPolicy:
                 target_spans = spans
             else:
                 action = "REGENERATE"
+                
+            if action == "REGENERATE":
                 if spans and response_text:
                     earliest_idx = len(response_text)
                     for s in spans:
@@ -152,6 +164,9 @@ class ControlPolicy:
             elif action == "REGENERATE":
                 reasoning = (f"REGENERATE: {triggering_dim.capitalize()} risk score ({triggering_score}) "
                              f"exceeded τ_low={active_tau_low}. Issues are too diffuse to modify in-place.")
+            elif action == "BLOCK":
+                reasoning = (f"BLOCK: Critical checker failure or API error in {triggering_dim.capitalize()}. "
+                             f"Halting pipeline to prevent unverified response.")
                              
         if report.under_verified and action != "ALLOW":
             reasoning = f"[UNDER-VERIFIED] {reasoning} (Circuit breaker interrupted full checks due to latency constraints)."

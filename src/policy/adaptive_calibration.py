@@ -35,7 +35,7 @@ class AdaptiveCalibrator:
                 cls._instance._initialized = False
             return cls._instance
 
-    def __init__(self, step_size: float = 0.05, min_alpha: float = 0.001, max_alpha: float = 0.5):
+    def __init__(self, step_size: float = 0.05, min_alpha: float = 0.01, max_alpha: float = 0.5):
         with self._lock:
             if self._initialized:
                 return

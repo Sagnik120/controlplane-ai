@@ -13,6 +13,7 @@ class CheckerResult(BaseModel):
     flagged_spans: List[FlaggedSpan] = Field(default_factory=list)
     overlaps_with: List[str] = Field(default_factory=list)
     explanation: str
+    is_error: bool = False
     
     # Extended fields for advanced Checkers (like PerformanceChecker with SelfCheckGPT)
     sentence_scores: Optional[List[Dict[str, Any]]] = None

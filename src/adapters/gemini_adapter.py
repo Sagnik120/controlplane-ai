@@ -9,7 +9,7 @@ class GeminiAdapter(BaseLLMAdapter):
     Adapter for Google's Gemini API using the modern google-genai SDK.
     """
     
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = "gemini-3.6-flash"):
         # Relies on GEMINI_API_KEY being present in os.environ (loaded via python-dotenv in the app)
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:

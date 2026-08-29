@@ -86,9 +86,10 @@ class SafetyChecker(BaseChecker):
             except Exception as e:
                 return CheckerResult(
                     checker_name=self.name,
-                    risk_score=0.9, # Elevated conservative risk
+                    risk_score=1.0, # Fatal error risk
                     flagged_span=flagged_span,
-                    explanation=f"LLM Judge returned malformed JSON: {str(e)} | Raw: {judge_response}"
+                    explanation=f"LLM Judge API/Model Error: {str(e)} | Raw: {judge_response}",
+                    is_error=True
                 )
                 
             verdict = result_json.get("verdict", "UNKNOWN")
@@ -138,5 +139,6 @@ class SafetyChecker(BaseChecker):
             return CheckerResult(
                 checker_name=self.name,
                 risk_score=1.0,
-                explanation=f"Checker failed: {str(e)}"
+                explanation=f"Checker failed: {str(e)}",
+                is_error=True
             )
