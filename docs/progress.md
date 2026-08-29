@@ -14,6 +14,9 @@ Last updated: 2026-08-28
   - Upgraded Control Policy to use mathematically calibrated Conformal Prediction thresholds (tau_low, tau_high).
   - Implemented 4-tier routing (ALLOW, MODIFY, REGENERATE, HUMAN) based on span coverage density.
   - Intercepted HUMAN escalations into an isolated JSONL queue.
+- **Spec 12 (Semantic Overlap Detection)**: [x] DONE
+  - Upgraded Risk Engine overlap detection from simple string-matching to a dual-pass retrieve-then-rerank architecture.
+  - Utilized `all-MiniLM-L6-v2` embeddings for semantic similarity and strict character Intersection-over-Union (IoU) for positional overlap.
 
 ## Current Status
 - **Architecture**: Validated and preserved. Middleware routing text through parallel checkers into Risk Engine and Control Policy.
