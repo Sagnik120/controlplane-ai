@@ -83,7 +83,8 @@ class AdaptiveCalibrator:
         # Fallback seeded data just in case it's empty to prevent math errors
         for dim, scores in data.items():
             if not scores:
-                data[dim] = [0.1] * 64
+                # Spread out scores between 0.01 and 0.99 so quantiles behave realistically (e.g. tau_high ~ 0.95+)
+                data[dim] = [round(i / 64.0, 3) for i in range(1, 65)]
         return data
 
     def _init_from_config(self):

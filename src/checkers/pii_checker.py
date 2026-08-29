@@ -156,11 +156,11 @@ class PiiChecker(BaseChecker):
             policy = context.get('policy')
             
             # Default allowlist if no policy provided
-            allowlist = ["EMAIL_ADDRESS", "PHONE_NUMBER", "US_SSN", "CREDIT_CARD", "PERSON", "EMAIL", "SSN"]
+            allowlist = ["EMAIL_ADDRESS", "PHONE_NUMBER", "US_SSN", "CREDIT_CARD", "PERSON", "EMAIL", "SSN", "IN_PAN", "IN_AADHAAR"]
             min_confidence = 0.5
             
             if policy and hasattr(policy, 'pii_entity_allowlist') and policy.pii_entity_allowlist:
-                allowlist = policy.pii_entity_allowlist
+                allowlist = list(set(policy.pii_entity_allowlist + ["IN_PAN", "IN_AADHAAR"]))
                 min_confidence = getattr(policy, 'pii_min_confidence', min_confidence)
                 
             results = self.analyzer.analyze(

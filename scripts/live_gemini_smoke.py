@@ -47,7 +47,7 @@ async def main():
         
         # 4. Define a simple, safe UseCasePolicy
         policy = UseCasePolicy(
-            name="smoke_test_policy",
+            name="customer_support_chatbot",
             max_overall_risk=0.8
         )
         
@@ -63,15 +63,15 @@ async def main():
         # Extract metadata
         decision = result.get("control_decision", {})
         action = decision.get("action", "UNKNOWN")
-        rationale = decision.get("rationale", "")
-        final_text = result.get("final_text", "")
+        reasoning = decision.get("reasoning", "")
+        final_text = result.get("final_output", "")
         
         risk_report = result.get("risk_report", {})
         overall_score = risk_report.get("overall_risk_score", 0.0)
         
         print(f"Final Action   : {action}")
         print(f"Overall Risk   : {overall_score:.2f}")
-        print(f"Rationale      : {rationale}")
+        print(f"Rationale      : {reasoning}")
         print(f"Generated Text : {final_text}")
         
         if "latency_ms" in result:

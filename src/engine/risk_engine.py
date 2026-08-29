@@ -100,7 +100,10 @@ class RiskEngine:
             return asyncio.run(self.evaluate_response_async(response_text, generation_time_ms, model_tier, prompt, adapter, policy))
 
     async def evaluate_response_async(self, response_text: str, generation_time_ms: int = 0, model_tier: str = "standard", prompt: str = "", adapter=None, policy=None) -> FinalRiskReport:
-        
+        # Backward compatibility for mocks/subclasses that override evaluate_response
+        if type(self).evaluate_response is not RiskEngine.evaluate_response and type(self).evaluate_response_async is RiskEngine.evaluate_response_async:
+            return self.evaluate_response(response_text, generation_time_ms, model_tier, prompt, adapter, policy)
+            
         # 1. Dispatch Checkers in Parallel
         loop = asyncio.get_running_loop()
         futures = []

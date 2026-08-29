@@ -90,12 +90,20 @@ class PipelineOrchestrator:
                 llm_output = "[LLM Returned Empty String]"
                 
             # 2. Risk Engine Evaluation
-            report = await self.risk_engine.evaluate_response_async(
-                llm_output,
-                prompt=prompt,
-                adapter=self.adapter,
-                policy=policy
-            )
+            if hasattr(self.risk_engine, "evaluate_response_async"):
+                report = await self.risk_engine.evaluate_response_async(
+                    llm_output,
+                    prompt=prompt,
+                    adapter=self.adapter,
+                    policy=policy
+                )
+            else:
+                report = self.risk_engine.evaluate_response(
+                    llm_output,
+                    prompt=prompt,
+                    adapter=self.adapter,
+                    policy=policy
+                )
             
             # 3. Session State Update (Spec 06)
             session_state = None
@@ -145,12 +153,20 @@ class PipelineOrchestrator:
                 if was_repaired:
                     # RE-VERIFY: Run risk engine again on the spliced text
                     print(f"   [Pipeline] Re-verifying repaired text...")
-                    reverify_report = await self.risk_engine.evaluate_response_async(
-                        repaired_text,
-                        prompt=prompt,
-                        adapter=self.adapter,
-                        policy=policy
-                    )
+                    if hasattr(self.risk_engine, "evaluate_response_async"):
+                        reverify_report = await self.risk_engine.evaluate_response_async(
+                            repaired_text,
+                            prompt=prompt,
+                            adapter=self.adapter,
+                            policy=policy
+                        )
+                    else:
+                        reverify_report = self.risk_engine.evaluate_response(
+                            repaired_text,
+                            prompt=prompt,
+                            adapter=self.adapter,
+                            policy=policy
+                        )
                     
                     reverify_decision = self.control_policy.evaluate(reverify_report, policy, response_text=repaired_text, session_state=session_state)
                     
@@ -197,12 +213,20 @@ class PipelineOrchestrator:
                         # Re-verify the spliced result
                         spliced_result = decision.clean_prefix.rstrip() + " " + new_text.lstrip()
                         
-                        reverify_report = await self.risk_engine.evaluate_response_async(
-                            spliced_result,
-                            prompt=prompt,
-                            adapter=self.adapter,
-                            policy=policy
-                        )
+                        if hasattr(self.risk_engine, "evaluate_response_async"):
+                            reverify_report = await self.risk_engine.evaluate_response_async(
+                                spliced_result,
+                                prompt=prompt,
+                                adapter=self.adapter,
+                                policy=policy
+                            )
+                        else:
+                            reverify_report = self.risk_engine.evaluate_response(
+                                spliced_result,
+                                prompt=prompt,
+                                adapter=self.adapter,
+                                policy=policy
+                            )
                         reverify_decision = self.control_policy.evaluate(reverify_report, policy, response_text=spliced_result, session_state=session_state)
                         
                         if reverify_decision.action == "ALLOW":
