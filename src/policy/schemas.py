@@ -1,5 +1,31 @@
 from pydantic import BaseModel, Field
-from typing import Dict, Literal, Optional, Any
+from typing import Dict, Literal, Optional, Any, List, Tuple
+
+class PerformanceBudget(BaseModel):
+    tier0_uncertain_band: Tuple[float, float] = (0.20, 0.80)
+    selfcheck_num_samples: int = 3
+    max_tier1_calls_per_response: Optional[int] = None
+    allow_best_of_n_regenerate: bool = False
+    best_of_n: int = 3
+
+class PiiBudget(BaseModel):
+    tier0_mode: str = "always_full_ner"
+
+class BiasBudget(BaseModel):
+    check_frequency: str = "every_window"
+
+class SafetyBudget(BaseModel):
+    check_frequency: str = "every_window"
+
+class RegenerateBudget(BaseModel):
+    max_attempts: int = 2
+
+class CheckerBudgetProfile(BaseModel):
+    performance: PerformanceBudget = Field(default_factory=PerformanceBudget)
+    pii: PiiBudget = Field(default_factory=PiiBudget)
+    bias: BiasBudget = Field(default_factory=BiasBudget)
+    safety: SafetyBudget = Field(default_factory=SafetyBudget)
+    regenerate: RegenerateBudget = Field(default_factory=RegenerateBudget)
 
 class UseCasePolicy(BaseModel):
     """
@@ -7,6 +33,11 @@ class UseCasePolicy(BaseModel):
     """
     name: str
     description: Optional[str] = None
+    
+    # SPEC 11
+    consequence_level: str = "medium"
+    latency_budget_ms: Optional[int] = None
+    checker_budget: CheckerBudgetProfile = Field(default_factory=CheckerBudgetProfile)
     
     # Global threshold: if the FinalRiskReport's overall_risk_score > this, block it.
     max_overall_risk: float = 0.8
@@ -55,6 +86,15 @@ class UseCasePolicy(BaseModel):
     tier0_uncertain_band_low: float = 0.20
     tier0_uncertain_band_high: float = 0.80
     regenerate_temperature: float = 0.2
+
+class FinalRiskReport(BaseModel):
+    overall_risk_score: float = 0.0
+    is_blocked: bool = False
+    checker_results: List[Any] = Field(default_factory=list)
+    overlap_detected: bool = False
+    overlap_records: List[Any] = Field(default_factory=list)
+    action: str = "ALLOW"
+    under_verified: bool = False
 
 class ControlDecision(BaseModel):
     """

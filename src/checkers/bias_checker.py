@@ -39,8 +39,11 @@ class BiasChecker(BaseChecker):
         policy = context.get('policy')
         always_judge = getattr(policy, 'bias_checker_always_judge', False) if policy else False
         
-        # SPEC 10: Sampling frequency gate
-        freq = getattr(policy, 'bias_check_frequency', 'every_window') if policy else 'every_window'
+        # SPEC 11: Budget profile
+        if policy and hasattr(policy, 'checker_budget'):
+            freq = policy.checker_budget.bias.check_frequency
+        else:
+            freq = getattr(policy, 'bias_check_frequency', 'every_window') if policy else 'every_window'
         
         # Simulated frequency gate (in a real app, this reads turn_id % N)
         # We will assume if not always_judge and freq isn't every_window, we only run if prefilter fires

@@ -32,6 +32,7 @@ class FinalRiskReport(BaseModel):
     checker_results: List[Any]  # Can be CheckerResult or CostMonitorResult
     overlap_detected: bool
     overlap_records: List[OverlapRecord] = Field(default_factory=list)
+    under_verified: bool = False
 
 class RiskEngine:
     def __init__(self):
@@ -121,8 +122,40 @@ class RiskEngine:
                 futures.append(loop.run_in_executor(self.thread_pool, checker.evaluate, response_text))
                 
         # Wait for all checkers to complete concurrently
-        # return_exceptions=True prevents a single crashed checker from killing the pipeline
-        raw_results = await asyncio.gather(*futures, return_exceptions=True)
+        # SPEC 11: Circuit Breaker based on latency_budget_ms
+        latency_budget = None
+        if policy and hasattr(policy, 'latency_budget_ms') and policy.latency_budget_ms:
+            latency_budget = policy.latency_budget_ms / 1000.0
+            
+        under_verified = False
+        
+        try:
+            raw_results = await asyncio.wait_for(
+                asyncio.gather(*futures, return_exceptions=True),
+                timeout=latency_budget
+            )
+        except asyncio.TimeoutError:
+            under_verified = True
+            # Gracefully degrade: try to salvage any completed futures
+            raw_results = []
+            for i, f in enumerate(futures):
+                if f.done() and not f.cancelled():
+                    try:
+                        raw_results.append(f.result())
+                    except Exception as e:
+                        raw_results.append(CheckerResult(
+                            checker_name=self.checkers[i].name,
+                            risk_score=1.0,
+                            explanation=f"Checker failed: {str(e)}"
+                        ))
+                else:
+                    # Cancel the pending future if possible
+                    f.cancel()
+                    raw_results.append(CheckerResult(
+                        checker_name=self.checkers[i].name,
+                        risk_score=0.0,
+                        explanation="Skipped (Circuit Breaker Timeout)"
+                    ))
         
         results = []
         for i, res in enumerate(raw_results):
@@ -250,5 +283,6 @@ class RiskEngine:
             is_blocked=is_blocked,
             checker_results=final_results_list,
             overlap_detected=overlap_detected,
-            overlap_records=overlap_records
+            overlap_records=overlap_records,
+            under_verified=under_verified
         )

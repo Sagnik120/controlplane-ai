@@ -102,7 +102,10 @@ class PiiChecker(BaseChecker):
             return Tier0Result(needs_tier1=False, risk=0.0, explanation="Empty.")
             
         policy = context.get('policy')
-        mode = getattr(policy, 'pii_tier0_mode', 'always_full_ner') if policy else 'always_full_ner'
+        if policy and hasattr(policy, 'checker_budget'):
+            mode = policy.checker_budget.pii.tier0_mode
+        else:
+            mode = getattr(policy, 'pii_tier0_mode', 'always_full_ner') if policy else 'always_full_ner'
         
         if mode == 'always_full_ner':
             return Tier0Result(needs_tier1=True)

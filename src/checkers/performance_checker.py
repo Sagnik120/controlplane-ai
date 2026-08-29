@@ -67,7 +67,14 @@ class PerformanceChecker(BaseChecker):
             return Tier0Result(needs_tier1=False, risk=1.0, explanation="Response is empty.")
             
         policy = context.get('policy')
-        tier0_band_low = getattr(policy, "tier0_uncertain_band_low", 0.20) if policy else 0.20
+        if policy and hasattr(policy, 'checker_budget'):
+            budget = policy.checker_budget.performance
+            tier0_band_low = budget.tier0_uncertain_band[0]
+            tier0_band_high = budget.tier0_uncertain_band[1]
+        else:
+            tier0_band_low = getattr(policy, "tier0_uncertain_band_low", 0.20) if policy else 0.20
+            tier0_band_high = getattr(policy, "tier0_uncertain_band_high", 0.80) if policy else 0.80
+            
         tier0_score = self._cheap_uncertainty(window_text)
         
         if tier0_score < tier0_band_low:
@@ -76,6 +83,19 @@ class PerformanceChecker(BaseChecker):
                 risk=tier0_score, 
                 explanation=f"Tier-0 Gate confident (score {tier0_score}). Bypassed Tier-1 SelfCheckGPT."
             )
+        
+        # SPEC_11: Check if we have exhausted max_tier1_calls_per_response
+        if policy and hasattr(policy, 'checker_budget'):
+            max_calls = policy.checker_budget.performance.max_tier1_calls_per_response
+            if max_calls is not None:
+                calls_so_far = context.get('performance_tier1_calls', 0)
+                if calls_so_far >= max_calls:
+                    return Tier0Result(
+                        needs_tier1=False,
+                        risk=tier0_score,
+                        explanation=f"Tier-0 Gate bypassed Tier-1: Exceeded budget cap ({max_calls} calls)."
+                    )
+        
         return Tier0Result(needs_tier1=True)
 
     def tier1_check(self, window_text: str, context: dict) -> CheckerResult:
@@ -99,10 +119,17 @@ class PerformanceChecker(BaseChecker):
             bertscore_weight = 0.3
             
             if policy:
-                n_samples = getattr(policy, "performance_n_samples", n_samples)
+                if hasattr(policy, 'checker_budget'):
+                    n_samples = policy.checker_budget.performance.selfcheck_num_samples
+                else:
+                    n_samples = getattr(policy, "performance_n_samples", n_samples)
+                    
                 sampling_temp = getattr(policy, "performance_sampling_temperature", sampling_temp)
                 nli_weight = getattr(policy, "performance_nli_weight", nli_weight)
                 bertscore_weight = getattr(policy, "performance_bertscore_weight", bertscore_weight)
+
+            # Record call for budget tracking
+            context['performance_tier1_calls'] = context.get('performance_tier1_calls', 0) + 1
 
             # 1. Adaptive Triggering / Caching
             # Cache the full result if prompt and response are identical

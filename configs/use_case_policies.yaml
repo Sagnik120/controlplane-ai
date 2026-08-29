@@ -1,6 +1,19 @@
 customer_support_chatbot:
   name: customer_support_chatbot
   description: Customer facing bot, latency sensitive
+  consequence_level: "medium"
+  latency_budget_ms: 400
+  checker_budget:
+    performance:
+      tier0_uncertain_band: [0.30, 0.70]
+      selfcheck_num_samples: 2
+      max_tier1_calls_per_response: 1
+    pii:
+      tier0_mode: "pattern_only_unless_hit"
+    bias:
+      check_frequency: "every_4th_window"
+    regenerate:
+      max_attempts: 1
   max_overall_risk: 0.8
   checker_thresholds:
     performance: 0.6
@@ -52,6 +65,19 @@ customer_support_chatbot:
 internal_knowledge_assistant:
   name: internal_knowledge_assistant
   description: Internal bot, favors accuracy over latency
+  consequence_level: "high"
+  latency_budget_ms: 3000
+  checker_budget:
+    performance:
+      tier0_uncertain_band: [0.15, 0.85]
+      selfcheck_num_samples: 5
+      max_tier1_calls_per_response: null
+    pii:
+      tier0_mode: "always_full_ner"
+    bias:
+      check_frequency: "every_window"
+    regenerate:
+      max_attempts: 2
   max_overall_risk: 0.7
   checker_thresholds:
     performance: 0.4

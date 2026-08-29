@@ -38,13 +38,19 @@ class SafetyChecker(BaseChecker):
         policy = context.get('policy')
         always_judge = getattr(policy, 'safety_checker_always_judge', False) if policy else False
         
+        # SPEC 11: Budget profile
+        if policy and hasattr(policy, 'checker_budget'):
+            freq = policy.checker_budget.safety.check_frequency
+        else:
+            freq = 'every_window'
+            
         flagged_span = self._run_prefilter(window_text)
         
-        if not flagged_span and not always_judge:
+        if not flagged_span and not always_judge and freq != 'every_window':
             return Tier0Result(
                 needs_tier1=False, 
                 risk=0.0, 
-                explanation="No safety risks detected (skipped LLM judge via pre-filter)."
+                explanation=f"No safety risks detected (skipped LLM judge via pre-filter / frequency {freq})."
             )
             
         # Passing flagged_span via context if needed, but we can recompute or let Tier1 know

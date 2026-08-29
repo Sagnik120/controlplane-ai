@@ -66,8 +66,16 @@ class ControlPolicy:
                 elif getattr(checker_result, 'flagged_span', None):
                     spans.append({"text": checker_result.flagged_span})
                     
+        # SPEC 11: Handle under-verified circuit breaker timeouts
+        if report.under_verified:
+            if getattr(policy, 'consequence_level', 'medium') in ["medium", "high"]:
+                if highest_severity == "ALLOW":
+                    highest_severity = "HUMAN" if policy.consequence_level == "high" else "NEEDS_REPAIR"
+                    triggering_dim = "timeout_circuit_breaker"
+                    triggering_score = 1.0
+                    
         # 2. Check Overlap policy (legacy support)
-        if report.overlap_detected and policy.block_on_overlap and highest_severity == "ALLOW":
+        if getattr(report, 'overlap_detected', False) and policy.block_on_overlap and highest_severity == "ALLOW":
             highest_severity = "NEEDS_REPAIR"
             triggering_dim = "overlap"
             
@@ -130,6 +138,9 @@ class ControlPolicy:
             elif action == "REGENERATE":
                 reasoning = (f"REGENERATE: {triggering_dim.capitalize()} risk score ({triggering_score}) "
                              f"exceeded τ_low={active_tau_low}. Issues are too diffuse to modify in-place.")
+                             
+        if report.under_verified and action != "ALLOW":
+            reasoning = f"[UNDER-VERIFIED] {reasoning} (Circuit breaker interrupted full checks due to latency constraints)."
                          
         calibration_meta = {
             "alpha_low": policy.alpha_low,

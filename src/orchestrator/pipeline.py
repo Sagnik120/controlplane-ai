@@ -24,10 +24,22 @@ class PipelineOrchestrator:
         self.checkpoint_mgr = CheckpointManager()
         self.regeneration_engine = RegenerationEngine(adapter, self.checkpoint_mgr)
         
-    def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None) -> dict:
+    def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None, request_context: Optional[dict] = None) -> dict:
         """
         Synchronous wrapper for processing a request End-to-End.
         """
+        import copy
+        request_context = request_context or {}
+        
+        # SPEC 11: Action Type Escalation (Tier Override)
+        action_type = request_context.get("action_type")
+        if action_type in ["refund", "account_change", "delete_data", "execute_trade"]:
+            print(f"   [Pipeline] Escalating UseCasePolicy consequence level from '{policy.consequence_level}' to 'high' due to action_type='{action_type}'.")
+            policy = policy.model_copy(deep=True) if hasattr(policy, 'model_copy') else copy.deepcopy(policy)
+            policy.consequence_level = "high"
+            if policy.latency_budget_ms and policy.latency_budget_ms < 3000:
+                policy.latency_budget_ms = 3000 # Give it more time to run heavier checks
+                
         llm_output = ""
         
         try:
