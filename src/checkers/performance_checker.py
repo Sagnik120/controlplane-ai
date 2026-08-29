@@ -2,6 +2,7 @@ import concurrent.futures
 import threading
 from typing import Optional, List, Dict, Any
 from .base import CheckerResult, BaseChecker, Tier0Result
+from src.policy.schemas import FlaggedSpan
 from spacy.lang.en import English
 
 try:
@@ -177,6 +178,7 @@ class PerformanceChecker(BaseChecker):
             sentence_scores = []
             max_risk = 0.0
             flagged_span = None
+            flagged_spans = []
             
             for i, sent in enumerate(sentences):
                 # Weighted ensemble of NLI and BERTScore
@@ -193,7 +195,17 @@ class PerformanceChecker(BaseChecker):
                     "inconsistency_score": float(score)
                 })
                 
-                # Save the highest risk sentence as the flagged_span for Risk Engine overlaps
+                if score > 0.4:
+                    flagged_spans.append(FlaggedSpan(
+                        checker_name=self.name,
+                        text=sent,
+                        char_start=span_start,
+                        char_end=span_end,
+                        risk_score=float(score),
+                        risk_reason="hallucination_detected"
+                    ))
+                
+                # Save the highest risk sentence as the flagged_span for legacy overlaps
                 if score == max_risk and score > 0.4:
                     flagged_span = sent
 
@@ -201,6 +213,7 @@ class PerformanceChecker(BaseChecker):
                 checker_name=self.name,
                 risk_score=round(max_risk, 3),
                 flagged_span=flagged_span,
+                flagged_spans=flagged_spans,
                 explanation=f"SelfCheckGPT detected hallucination risk of {round(max_risk, 3)}.",
                 sentence_scores=sentence_scores,
                 confidence=round(1.0 - max_risk, 3),

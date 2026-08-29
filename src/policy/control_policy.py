@@ -56,7 +56,15 @@ class ControlPolicy:
                 
             # Collect spans for repair estimation
             if severity != "ALLOW":
-                if getattr(checker_result, 'entities', None):
+                if getattr(checker_result, 'flagged_spans', None):
+                    for fs in checker_result.flagged_spans:
+                        spans.append({
+                            "text": fs.text,
+                            "char_start": fs.char_start,
+                            "char_end": fs.char_end,
+                            "entity_type": fs.risk_reason
+                        })
+                elif getattr(checker_result, 'entities', None):
                     spans.extend(checker_result.entities)
                 elif getattr(checker_result, 'sentence_scores', None):
                     # For performance checker

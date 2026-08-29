@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from src.policy.schemas import FlaggedSpan
 from abc import ABC, abstractmethod
 
 class CheckerResult(BaseModel):
@@ -9,6 +10,7 @@ class CheckerResult(BaseModel):
     checker_name: str
     risk_score: float = Field(ge=0.0, le=1.0)
     flagged_span: Optional[str] = None
+    flagged_spans: List[FlaggedSpan] = Field(default_factory=list)
     overlaps_with: List[str] = Field(default_factory=list)
     explanation: str
     

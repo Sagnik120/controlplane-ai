@@ -2,6 +2,7 @@ import re
 import os
 import json
 from .base import CheckerResult, BaseChecker, Tier0Result
+from src.policy.schemas import FlaggedSpan
 
 class SafetyChecker(BaseChecker):
     """
@@ -105,10 +106,28 @@ class SafetyChecker(BaseChecker):
             else:
                 risk_score = 0.0
                 
+            flagged_spans = []
+            if risk_score > 0.0:
+                span_text = flagged_span if flagged_span else window_text
+                start_idx = window_text.lower().find(span_text.lower()) if span_text else 0
+                if start_idx == -1:
+                    start_idx = 0
+                end_idx = start_idx + len(span_text) if span_text else len(window_text)
+                
+                flagged_spans.append(FlaggedSpan(
+                    checker_name=self.name,
+                    text=span_text,
+                    char_start=start_idx,
+                    char_end=end_idx,
+                    risk_score=risk_score,
+                    risk_reason=", ".join(categories) if categories else "safety_violation"
+                ))
+                
             return CheckerResult(
                 checker_name=self.name,
                 risk_score=risk_score,
                 flagged_span=flagged_span,
+                flagged_spans=flagged_spans,
                 explanation=reasoning,
                 method="llm-as-judge-rubric",
                 judge_category=", ".join(categories) if categories else None,

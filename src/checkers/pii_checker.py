@@ -13,6 +13,7 @@ except ImportError:
     NlpEngineProvider = None
 
 from .base import CheckerResult, BaseChecker, Tier0Result
+from src.policy.schemas import FlaggedSpan
 import re
 
 class PiiranhaRecognizer(EntityRecognizer):
@@ -165,12 +166,22 @@ class PiiChecker(BaseChecker):
             prob_safe = 1.0
             highest_score = 0.0
             flagged_span = None
+            flagged_spans = []
             
             for r in valid_results:
                 prob_safe *= (1.0 - float(r.score))
                 if r.score > highest_score:
                     highest_score = float(r.score)
                     flagged_span = window_text[r.start:r.end]
+                
+                flagged_spans.append(FlaggedSpan(
+                    checker_name=self.name,
+                    text=window_text[r.start:r.end],
+                    char_start=r.start,
+                    char_end=r.end,
+                    risk_score=float(r.score),
+                    risk_reason=r.entity_type
+                ))
                     
             risk_score = 1.0 - prob_safe
             
@@ -178,6 +189,7 @@ class PiiChecker(BaseChecker):
                 checker_name=self.name,
                 risk_score=round(risk_score, 3),
                 flagged_span=flagged_span,
+                flagged_spans=flagged_spans,
                 explanation=f"Detected {len(valid_results)} PII entities. Noisy-OR aggregated risk: {round(risk_score, 3)}",
                 entities=entities,
                 method="presidio_hybrid_piiranha"
