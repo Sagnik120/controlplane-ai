@@ -4,12 +4,19 @@ import numpy as np
 from src.policy.schemas import FlaggedSpan, OverlapGroup
 
 class SemanticOverlapDetector:
-    def __init__(self, embedder):
+    def __init__(self, embedder=None):
         """
-        Takes an already instantiated SentenceTransformer ('all-MiniLM-L6-v2') to ensure
-        zero extra memory cost when reusing the session state embedder.
+        Dynamically gets or reuses the SentenceTransformer to guarantee
+        zero startup overhead and zero RAM consumption during server boot.
         """
-        self.embedder = embedder
+        self._embedder = embedder
+
+    @property
+    def embedder(self):
+        if self._embedder is None:
+            from src.engine.embedding_registry import EmbeddingRegistry
+            self._embedder = EmbeddingRegistry.get_embedder()
+        return self._embedder
 
     def _char_iou(self, span1: FlaggedSpan, span2: FlaggedSpan) -> float:
         # Calculate intersection
