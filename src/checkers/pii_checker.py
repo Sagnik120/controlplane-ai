@@ -1,5 +1,4 @@
 import os
-import transformers
 from typing import List, Dict, Any, Optional
 
 try:
@@ -25,19 +24,29 @@ class PiiranhaRecognizer(EntityRecognizer):
             # Common labels from piiranha
             supported_entities = ["PERSON", "LOCATION", "ORGANIZATION", "PASSWORD", "IP_ADDRESS", "EMAIL", "PHONE_NUMBER", "SSN"]
         super().__init__(supported_entities=supported_entities, name="PiiranhaRecognizer")
-        # Load HuggingFace pipeline
-        self.pipeline = transformers.pipeline(
-            "ner", 
-            model="iiiorg/piiranha-v1-detect-personal-information",
-            aggregation_strategy="simple"
-        )
+        self._pipeline = None
         
+    @property
+    def pipeline(self):
+        if self._pipeline is None:
+            try:
+                import transformers
+                self._pipeline = transformers.pipeline(
+                    "ner", 
+                    model="iiiorg/piiranha-v1-detect-personal-information",
+                    aggregation_strategy="simple"
+                )
+            except Exception as e:
+                print(f"⚠️ [PiiranhaRecognizer] Could not load HuggingFace NER: {e}")
+                self._pipeline = None
+        return self._pipeline
+
     def load(self):
         pass
 
     def analyze(self, text: str, entities: List[str], nlp_artifacts=None):
         results = []
-        if not text:
+        if not text or self.pipeline is None:
             return results
         
         preds = self.pipeline(text)
