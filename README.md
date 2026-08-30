@@ -25,7 +25,7 @@ By grounding its decisions in **Conformal Prediction** and **Adaptive Conformal 
 - Explore the deployed web console: **[Live Demo](https://controlplane-ai-zajs.onrender.com)**
 - *No deployment yet? See [Installation & Running Locally](#-installation--running-locally) below to run the full dashboard locally in under 5 minutes.*
 
-[![ControlPlane-AI Demo Video](https://img.shields.io/badge/Demo_Video-Watch_Walkthrough-blue?style=for-the-badge&logo=youtube)](YOUR_VIDEO_URL_HERE)
+[![ControlPlane-AI Demo Video](https://img.shields.io/badge/Demo_Video-Watch_Walkthrough-blue?style=for-the-badge&logo=youtube)](https://drive.google.com/file/d/1WQlvWAI9PtqViSca-iqVKyRT_4FSIin-/view?usp=drive_link)
 
 ---
 
