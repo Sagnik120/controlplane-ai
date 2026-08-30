@@ -12,20 +12,24 @@ from src.policy.control_policy import ControlPolicy
 from src.audit.audit_logger import AuditLogger
 from src.policy.schemas import UseCasePolicy
 
-# Automatically use GeminiAdapter if API key is set, otherwise fall back to MockAdapter
-api_key = os.environ.get("GEMINI_API_KEY")
-if api_key:
-    print("🔌 [ControlPlane-AI] Active LLM Adapter: Google Gemini (gemini-3.6-flash)")
-    adapter = GeminiAdapter(model_name="gemini-3.6-flash")
-else:
-    print("⚠️ [ControlPlane-AI] Warning: GEMINI_API_KEY not found. Using MockAdapter.")
-    adapter = MockAdapter()
+_orchestrator = None
 
-risk_engine = RiskEngine()
-control_policy = ControlPolicy()
-audit_logger = AuditLogger()
+def get_orchestrator() -> PipelineOrchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if api_key:
+            print("🔌 [ControlPlane-AI] Active LLM Adapter: Google Gemini (gemini-3.6-flash)")
+            adapter = GeminiAdapter(model_name="gemini-3.6-flash")
+        else:
+            print("⚠️ [ControlPlane-AI] Warning: GEMINI_API_KEY not found. Using MockAdapter.")
+            adapter = MockAdapter()
 
-orchestrator = PipelineOrchestrator(adapter, risk_engine, control_policy, audit_logger)
+        risk_engine = RiskEngine()
+        control_policy = ControlPolicy()
+        audit_logger = AuditLogger()
+        _orchestrator = PipelineOrchestrator(adapter, risk_engine, control_policy, audit_logger)
+    return _orchestrator
 
 # Define preset policies for the demo
 POLICIES = {
@@ -51,9 +55,6 @@ POLICIES = {
         block_on_overlap=False
     )
 }
-
-def get_orchestrator() -> PipelineOrchestrator:
-    return orchestrator
 
 def get_policy(policy_id: str) -> UseCasePolicy:
     return POLICIES.get(policy_id, POLICIES["standard"])
