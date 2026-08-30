@@ -8,13 +8,9 @@ from spacy.lang.en import English
 try:
     import spacy
     import warnings
-    # Suppress the PyTorch/numpy non-writable tensor warning from bert_score
     warnings.filterwarnings("ignore", message="The given NumPy array is not writable")
-    from selfcheckgpt.modeling_selfcheck import SelfCheckNLI, SelfCheckBERTScore
 except ImportError:
     spacy = None
-    SelfCheckNLI = None
-    SelfCheckBERTScore = None
 
 class PerformanceChecker(BaseChecker):
     """
@@ -42,18 +38,28 @@ class PerformanceChecker(BaseChecker):
 
     @property
     def selfcheck_nli(self):
-        if self._selfcheck_nli is None and SelfCheckNLI is not None:
+        if self._selfcheck_nli is None:
             with self._model_lock:
                 if self._selfcheck_nli is None:
-                    self._selfcheck_nli = SelfCheckNLI(device="cpu")
+                    try:
+                        from selfcheckgpt.modeling_selfcheck import SelfCheckNLI
+                        self._selfcheck_nli = SelfCheckNLI(device="cpu")
+                    except Exception as e:
+                        print(f"⚠️ [PerformanceChecker] Could not load SelfCheckNLI: {e}")
+                        self._selfcheck_nli = None
         return self._selfcheck_nli
 
     @property
     def selfcheck_bertscore(self):
-        if self._selfcheck_bertscore is None and SelfCheckBERTScore is not None:
+        if self._selfcheck_bertscore is None:
             with self._model_lock:
                 if self._selfcheck_bertscore is None:
-                    self._selfcheck_bertscore = SelfCheckBERTScore(default_model="en")
+                    try:
+                        from selfcheckgpt.modeling_selfcheck import SelfCheckBERTScore
+                        self._selfcheck_bertscore = SelfCheckBERTScore(default_model="en")
+                    except Exception as e:
+                        print(f"⚠️ [PerformanceChecker] Could not load SelfCheckBERTScore: {e}")
+                        self._selfcheck_bertscore = None
         return self._selfcheck_bertscore
 
     def _cheap_uncertainty(self, text: str) -> float:
