@@ -45,7 +45,7 @@ def get_metrics():
         raise HTTPException(status_code=500, detail=f"Failed to read metrics: {str(e)}")
 
 @router.post("/chat")
-async def chat(request: ChatRequest, orchestrator: PipelineOrchestrator = Depends(get_orchestrator)):
+async def chat(request: ChatRequest, orchestrator = Depends(get_orchestrator)):
     """
     Main endpoint for generating text.
     Passes the prompt and the requested Use-Case Policy into the PipelineOrchestrator.
