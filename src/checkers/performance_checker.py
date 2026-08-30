@@ -24,24 +24,37 @@ class PerformanceChecker(BaseChecker):
     name = "performance"
     
     def __init__(self):
-        if spacy is None or SelfCheckNLI is None:
-            raise ImportError("selfcheckgpt and spacy are required for PerformanceChecker")
-            
         try:
             self.nlp = spacy.load("en_core_web_sm")
         except:
             self.nlp = English()
             self.nlp.add_pipe("sentencizer")
             
-        # Initialize models (CPU for demo/hackathon to avoid GPU mem issues)
-        self.selfcheck_nli = SelfCheckNLI(device="cpu")
-        self.selfcheck_bertscore = SelfCheckBERTScore(default_model="en")
+        # Lazy load deep models to keep startup memory < 150MB on cloud tier
+        self._selfcheck_nli = None
+        self._selfcheck_bertscore = None
         
         # Latency mitigation: Cache samples by prompt prefix
         self._sample_cache = {}
         
         # PyTorch thread-safety lock for concurrent evaluations
         self._model_lock = threading.Lock()
+
+    @property
+    def selfcheck_nli(self):
+        if self._selfcheck_nli is None and SelfCheckNLI is not None:
+            with self._model_lock:
+                if self._selfcheck_nli is None:
+                    self._selfcheck_nli = SelfCheckNLI(device="cpu")
+        return self._selfcheck_nli
+
+    @property
+    def selfcheck_bertscore(self):
+        if self._selfcheck_bertscore is None and SelfCheckBERTScore is not None:
+            with self._model_lock:
+                if self._selfcheck_bertscore is None:
+                    self._selfcheck_bertscore = SelfCheckBERTScore(default_model="en")
+        return self._selfcheck_bertscore
 
     def _cheap_uncertainty(self, text: str) -> float:
         """
