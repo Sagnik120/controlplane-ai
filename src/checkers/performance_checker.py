@@ -3,8 +3,6 @@ import threading
 from typing import Optional, List, Dict, Any
 from .base import CheckerResult, BaseChecker, Tier0Result
 from src.policy.schemas import FlaggedSpan
-from spacy.lang.en import English
-
 try:
     import spacy
     import warnings
@@ -20,12 +18,7 @@ class PerformanceChecker(BaseChecker):
     name = "performance"
     
     def __init__(self):
-        try:
-            self.nlp = spacy.load("en_core_web_sm")
-        except:
-            self.nlp = English()
-            self.nlp.add_pipe("sentencizer")
-            
+        self._nlp = None
         # Lazy load deep models to keep startup memory < 150MB on cloud tier
         self._selfcheck_nli = None
         self._selfcheck_bertscore = None
@@ -35,6 +28,20 @@ class PerformanceChecker(BaseChecker):
         
         # PyTorch thread-safety lock for concurrent evaluations
         self._model_lock = threading.Lock()
+
+    @property
+    def nlp(self):
+        if self._nlp is None:
+            try:
+                if spacy is not None:
+                    self._nlp = spacy.load("en_core_web_sm")
+            except Exception:
+                pass
+            if self._nlp is None:
+                from spacy.lang.en import English
+                self._nlp = English()
+                self._nlp.add_pipe("sentencizer")
+        return self._nlp
 
     @property
     def selfcheck_nli(self):
