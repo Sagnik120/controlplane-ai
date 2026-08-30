@@ -4,19 +4,19 @@ from dotenv import load_dotenv
 # Load environment variables from .env
 load_dotenv()
 
-from src.orchestrator.pipeline import PipelineOrchestrator
-from src.adapters.mock_adapter import MockAdapter
-from src.adapters.gemini_adapter import GeminiAdapter
-from src.engine.risk_engine import RiskEngine
-from src.policy.control_policy import ControlPolicy
-from src.audit.audit_logger import AuditLogger
 from src.policy.schemas import UseCasePolicy
 
 _orchestrator = None
 
-def get_orchestrator() -> PipelineOrchestrator:
+def get_orchestrator():
     global _orchestrator
     if _orchestrator is None:
+        from src.orchestrator.pipeline import PipelineOrchestrator
+        from src.adapters.mock_adapter import MockAdapter
+        from src.adapters.gemini_adapter import GeminiAdapter
+        from src.engine.risk_engine import RiskEngine
+        from src.policy.control_policy import ControlPolicy
+        from src.audit.audit_logger import AuditLogger
         api_key = os.environ.get("GEMINI_API_KEY")
         if api_key:
             print("🔌 [ControlPlane-AI] Active LLM Adapter: Google Gemini (gemini-3.6-flash)")

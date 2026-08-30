@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional
 import uuid
 
 from .dependencies import get_orchestrator, get_policy, POLICIES
-from src.orchestrator.pipeline import PipelineOrchestrator
 from src.policy.schemas import UseCasePolicy
 import os
 import json

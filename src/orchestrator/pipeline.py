@@ -30,9 +30,8 @@ class PipelineOrchestrator:
         self.checkpoint_mgr = CheckpointManager()
         self.regeneration_engine = RegenerationEngine(adapter, self.checkpoint_mgr)
         
-        # Instantiate overlap detector sharing the engine's embedder if possible
-        embedder = EmbeddingRegistry.get_embedder()
-        overlap_detector = SemanticOverlapDetector(embedder=embedder)
+        # Instantiate overlap detector lazily
+        overlap_detector = SemanticOverlapDetector()
         self.action_checker = ActionRiskChecker(overlap_detector=overlap_detector)
         
     def process_request(self, prompt: str, policy: UseCasePolicy, user_id: str = "anonymous", session_id: Optional[str] = None, request_context: Optional[dict] = None) -> dict:

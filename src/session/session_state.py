@@ -26,7 +26,13 @@ class SessionRiskState(BaseModel):
 class SessionStore:
     def __init__(self, embedder=None):
         self.sessions: Dict[str, SessionRiskState] = {}
-        self.model = embedder if embedder else EmbeddingRegistry.get_embedder()
+        self._model = embedder
+
+    @property
+    def model(self):
+        if self._model is None:
+            self._model = EmbeddingRegistry.get_embedder()
+        return self._model
 
     def get_or_create(self, session_id: str) -> SessionRiskState:
         if session_id not in self.sessions:
