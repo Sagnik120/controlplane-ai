@@ -82,45 +82,46 @@ class PipelineOrchestrator:
         llm_output = ""
         
         try:
-            # 1. Generate text from LLM (accumulate chunks for the synchronous pipeline)
-            for chunk in self.adapter.generate_stream(prompt):
-                llm_output += chunk
-                
-            if not llm_output:
-                llm_output = "[LLM Returned Empty String]"
-        except Exception as e:
-            # If the upstream provider fails (e.g. 429 rate limit or network issue),
-            # halt the pipeline cleanly with an authentic BLOCK verdict
-            error_msg = str(e)
-            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-                user_msg = "[UPSTREAM RATE LIMIT] Google Gemini API rate limit reached (Free tier: 20 requests/min). Please retry in 30 seconds."
-            else:
-                user_msg = f"[UPSTREAM LLM ERROR] {error_msg}"
-                
-            decision = ControlDecision(
-                action="BLOCK",
-                target_spans=[],
-                reasoning=f"Pipeline halted: Upstream LLM provider generation failed. Details: {error_msg[:120]}...",
-                policy_id=policy.name
-            )
-            report = FinalRiskReport(
-                overall_risk_score=1.0,
-                is_blocked=True,
-                checker_results=[
-                    CheckerResult(checker_name="llm_provider", risk_score=1.0, explanation=user_msg, is_error=True)
-                ],
-                overlap_detected=False
-            )
-            return {
-                "final_output": user_msg,
-                "control_decision": decision.model_dump() if hasattr(decision, "model_dump") else decision.__dict__,
-                "risk_report": report.model_dump() if hasattr(report, "model_dump") else report.__dict__,
-                "latency_ms": 0,
-                "was_repaired": False,
-                "was_regenerated": False,
-                "session_state": None,
-                "request_id": str(uuid.uuid4())
-            }
+            try:
+                # 1. Generate text from LLM (accumulate chunks for the synchronous pipeline)
+                for chunk in self.adapter.generate_stream(prompt):
+                    llm_output += chunk
+                    
+                if not llm_output:
+                    llm_output = "[LLM Returned Empty String]"
+            except Exception as e:
+                # If the upstream provider fails (e.g. 429 rate limit or network issue),
+                # halt the pipeline cleanly with an authentic BLOCK verdict
+                error_msg = str(e)
+                if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                    user_msg = "[UPSTREAM RATE LIMIT] Google Gemini API rate limit reached (Free tier: 20 requests/min). Please retry in 30 seconds."
+                else:
+                    user_msg = f"[UPSTREAM LLM ERROR] {error_msg}"
+                    
+                decision = ControlDecision(
+                    action="BLOCK",
+                    target_spans=[],
+                    reasoning=f"Pipeline halted: Upstream LLM provider generation failed. Details: {error_msg[:120]}...",
+                    policy_id=policy.name
+                )
+                report = FinalRiskReport(
+                    overall_risk_score=1.0,
+                    is_blocked=True,
+                    checker_results=[
+                        CheckerResult(checker_name="llm_provider", risk_score=1.0, explanation=user_msg, is_error=True)
+                    ],
+                    overlap_detected=False
+                )
+                return {
+                    "final_output": user_msg,
+                    "control_decision": decision.model_dump() if hasattr(decision, "model_dump") else decision.__dict__,
+                    "risk_report": report.model_dump() if hasattr(report, "model_dump") else report.__dict__,
+                    "latency_ms": 0,
+                    "was_repaired": False,
+                    "was_regenerated": False,
+                    "session_state": None,
+                    "request_id": str(uuid.uuid4())
+                }
                 
             # 2. Risk Engine Evaluation
             if hasattr(self.risk_engine, "evaluate_response_async"):
