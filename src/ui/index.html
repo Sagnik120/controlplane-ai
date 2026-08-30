@@ -71,17 +71,17 @@
                 <div class="fact-ledger">
                     <div class="fact-item">
                         <span class="fact-val">04</span>
-                        <span class="fact-lbl">Active Guardrail Layers</span>
+                        <span class="fact-lbl">Parallel Checker Engines</span>
                     </div>
                     <div class="fact-sep"></div>
                     <div class="fact-item">
-                        <span class="fact-val">0.42</span>
-                        <span class="fact-lbl">Default Review Threshold (τ)</span>
+                        <span class="fact-val">05</span>
+                        <span class="fact-lbl">Intervention Tiers</span>
                     </div>
                     <div class="fact-sep"></div>
                     <div class="fact-item">
-                        <span class="fact-val">&lt; 120ms</span>
-                        <span class="fact-lbl">Target Orchestration Latency</span>
+                        <span class="fact-val">0.05</span>
+                        <span class="fact-lbl">Conformal Target Error (α)</span>
                     </div>
                 </div>
             </div>
@@ -423,24 +423,24 @@
 
             <div class="evidence-cards-grid">
                 <div class="evidence-card">
-                    <div class="card-num mono">01 // CONTEXTUAL</div>
-                    <h3 class="card-heading">100% Evidence Return</h3>
-                    <p class="card-p">Every intervention delivers token-level spans, entity extractions, and mathematical confidence rationales — not just binary passes.</p>
-                    <div class="card-tag-mono mono">DECISION CONTEXT · NOT GUESSWORK</div>
+                    <div class="card-num mono">01 // AUDITABILITY</div>
+                    <h3 class="card-heading">Structured Evidence Return</h3>
+                    <p class="card-p">Every intervention returns detected token-level spans, entity labels, and risk scores logged in structured audit telemetry.</p>
+                    <div class="card-tag-mono mono">AUDITABLE TRACEABILITY</div>
                 </div>
 
                 <div class="evidence-card">
                     <div class="card-num mono">02 // PARALLEL</div>
-                    <h3 class="card-heading">04× Async Signal Merge</h3>
-                    <p class="card-p">Presidio NER, LLM-as-a-judge, and semantic overlap detectors execute concurrently in parallel worker pools without blocking event loops.</p>
-                    <div class="card-tag-mono mono">INDEPENDENT CHECKS · ONE PLANE</div>
+                    <h3 class="card-heading">Multi-Checker Dispatch</h3>
+                    <p class="card-p">Presidio NER, LLM-as-a-judge, and semantic overlap detectors execute concurrently in worker thread pools to minimize latency overhead.</p>
+                    <div class="card-tag-mono mono">PARALLEL EXECUTION</div>
                 </div>
 
                 <div class="evidence-card">
-                    <div class="card-num mono">03 // LATENCY</div>
-                    <h3 class="card-heading">&lt; 120ms Nominal Latency</h3>
-                    <p class="card-p">Budget-aware circuit breakers guarantee that governance pipelines never bottleneck mission-critical real-time conversational flows.</p>
-                    <div class="card-tag-mono mono">GOVERNANCE AT PRODUCTION SPEED</div>
+                    <div class="card-num mono">03 // ADAPTIVE</div>
+                    <h3 class="card-heading">Conformal Calibration</h3>
+                    <p class="card-p">Decision bounds (ALLOW, MODIFY, REGENERATE, HUMAN, BLOCK) are calibrated from empirical risk distributions to bound false negatives.</p>
+                    <div class="card-tag-mono mono">STATISTICAL BOUNDS</div>
                 </div>
             </div>
         </div>

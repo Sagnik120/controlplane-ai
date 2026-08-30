@@ -11,32 +11,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await response.json();
         
         if (!data.use_cases || Object.keys(data.use_cases).length === 0) {
-            // Provide realistic calibrated demo data if server hasn't accumulated runs yet
-            renderMetrics(getFallbackDemoMetrics());
+            renderEmptyState();
             return;
         }
 
         renderMetrics(data);
         
     } catch (e) {
-        console.warn("Using calibrated fallback ledger telemetry:", e);
-        renderMetrics(getFallbackDemoMetrics());
+        console.warn("Could not retrieve telemetry from /api/metrics:", e);
+        renderEmptyState();
+    }
+
+    function renderEmptyState() {
+        root.innerHTML = `
+            <div class="use-case-card" style="text-align: center; padding: 48px 24px;">
+                <span class="mono text-muted" style="font-size: 0.8rem; letter-spacing: 1px;">LEDGER STATUS: NO TELEMETRY ACCUMULATED YET</span>
+                <div style="font-family: var(--font-heading); font-size: 1.6rem; font-weight: 700; color: #FFF; margin: 12px 0 8px 0;">
+                    Run Prompts in the Testbench to Generate Audit Data
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; max-width: 520px; margin: 0 auto 24px auto; line-height: 1.5;">
+                    Metrics are computed dynamically from <code class="mono" style="color: var(--lime);">data/metrics_log.jsonl</code>. 
+                    Execute test prompts in the Live Testbench or run the evaluation script to populate live statistical coverage.
+                </p>
+                <a href="index.html#pipeline-section" class="btn btn-lime" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-weight: 600;">
+                    <span>Open Live Testbench</span>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </a>
+            </div>
+        `;
     }
 
     function renderMetrics(data) {
         let totalCoverage = 0;
         let totalGuaranteed = 0;
-        let totalSaved = 0;
         let ucCount = 0;
         
         for (const [uc, s] of Object.entries(data.use_cases)) {
-            totalCoverage += s.empirical_coverage || 95.0;
-            totalGuaranteed += s.guaranteed_coverage || 95.0;
-            totalSaved += s.cost_saved_usd || 0;
-            ucCount++;
+            if (typeof s.empirical_coverage === 'number') {
+                totalCoverage += s.empirical_coverage;
+                totalGuaranteed += s.guaranteed_coverage || 95.0;
+                ucCount++;
+            }
         }
         
-        const avgCoverage = ucCount > 0 ? (totalCoverage / ucCount).toFixed(1) : "96.4";
+        const avgCoverage = ucCount > 0 ? (totalCoverage / ucCount).toFixed(1) : "95.0";
         const avgGuaranteed = ucCount > 0 ? (totalGuaranteed / ucCount).toFixed(1) : "95.0";
 
         let html = `
@@ -44,17 +62,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="use-case-card" style="border-color: rgba(200, 244, 90, 0.3); background: rgba(200, 244, 90, 0.02); margin-bottom: 36px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
                     <div>
-                        <span class="mono text-lime" style="font-size: 0.75rem; letter-spacing: 1px;">STATISTICAL CONFORMAL GUARANTEE</span>
-                        <div style="font-family: var(--font-heading); font-size: 2.6rem; font-weight: 700; color: #FFF; margin: 4px 0;">
-                            ${avgCoverage}% <span style="font-size: 1.2rem; color: var(--text-muted); font-weight: 400;">/ ${avgGuaranteed}% guaranteed bound</span>
+                        <span class="mono text-lime" style="font-size: 0.75rem; letter-spacing: 1px;">STATISTICAL CONFORMAL EVALUATION</span>
+                        <div style="font-family: var(--font-heading); font-size: 2.4rem; font-weight: 700; color: #FFF; margin: 4px 0;">
+                            ${avgCoverage}% <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">empirical coverage (${avgGuaranteed}% bound)</span>
                         </div>
-                        <p style="color: var(--text-secondary); font-size: 0.88rem; max-width: 540px;">
-                            Empirical safety rate of allowed generations verified against Split Conformal Quantiles ($\alpha=0.05$).
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; max-width: 580px;">
+                            Calculated from real logged events in <code class="mono" style="color: var(--lime);">data/metrics_log.jsonl</code>.
                         </p>
-                    </div>
-                    <div class="stat-box" style="align-items: flex-end; min-width: 180px;">
-                        <span class="stat-label mono">TOTAL INFERENCE COST SAVED</span>
-                        <span class="stat-val text-lime mono">$${totalSaved.toFixed(2)} USD</span>
                     </div>
                 </div>
             </div>
@@ -65,40 +79,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             let totalTiers = Object.values(tiers).reduce((a, b) => a + b, 0);
             if (totalTiers === 0) totalTiers = 1;
 
-            const fpos = s.false_positive_rate || 2.4;
-            const fneg = s.false_negative_rate || 0.0;
-            const lat = (s.avg_latency_ms && s.avg_latency_ms.ALLOW) ? s.avg_latency_ms.ALLOW : 84;
+            const fpos = typeof s.false_positive_rate === 'number' ? s.false_positive_rate.toFixed(1) : "0.0";
+            const fneg = typeof s.false_negative_rate === 'number' ? s.false_negative_rate.toFixed(1) : "0.0";
+            const lat = (s.avg_latency_ms && s.avg_latency_ms.ALLOW) ? s.avg_latency_ms.ALLOW : 0;
+            const empCov = typeof s.empirical_coverage === 'number' ? `${s.empirical_coverage.toFixed(1)}%` : "N/A";
 
             html += `
                 <div class="use-case-card">
                     <div class="use-case-header">
                         <div>
-                            <span class="mono text-muted" style="font-size: 0.72rem;">USE-CASE POLICY PROFILE</span>
+                            <span class="mono text-muted" style="font-size: 0.72rem;">USE-CASE POLICY</span>
                             <div class="uc-title">${uc.replace(/_/g, ' ')}</div>
                         </div>
-                        <span class="mono-meta">CALIBRATION N: ${s.total_requests || 128}</span>
+                        <span class="mono-meta">RECORDED RUNS: ${s.total_requests || 0}</span>
                     </div>
 
                     <div class="metrics-stats-grid">
                         <div class="stat-box">
                             <span class="stat-label mono">EMPIRICAL COVERAGE</span>
-                            <span class="stat-val text-lime">${s.empirical_coverage || 96.2}%</span>
+                            <span class="stat-val text-lime">${empCov}</span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-label mono">FALSE POSITIVE RATE</span>
-                            <span class="stat-val" style="color: ${fpos > 10 ? 'var(--amber)' : 'var(--text-primary)'}">${fpos}%</span>
+                            <span class="stat-val">${fpos}%</span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-label mono">FALSE NEGATIVE RATE</span>
-                            <span class="stat-val" style="color: ${fneg > 5 ? 'var(--coral)' : 'var(--emerald)'}">${fneg}%</span>
+                            <span class="stat-val">${fneg}%</span>
                         </div>
                         <div class="stat-box">
-                            <span class="stat-label mono">AVG ORCHESTRATION LATENCY</span>
+                            <span class="stat-label mono">AVG ALLOW LATENCY</span>
                             <span class="stat-val mono" style="color: var(--text-secondary)">${lat}ms</span>
                         </div>
                     </div>
 
-                    <span class="chart-section-title mono">ACTION TIER INTERVENTION DISTRIBUTION (N=${s.total_requests || 128})</span>
+                    <span class="chart-section-title mono">RECORDED ACTION TIER DISTRIBUTION (N=${s.total_requests || 0})</span>
                     <div style="margin-top: 8px;">
             `;
 
@@ -112,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="bar-track">
                             <div class="bar-fill-bar bar-${tier.toLowerCase()}" style="width: ${pct}%"></div>
                         </div>
-                        <div class="bar-num">${pct}%</div>
+                        <div class="bar-num">${count} (${pct}%)</div>
                     </div>
                 `;
             }
@@ -124,42 +139,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         root.innerHTML = html;
-    }
-
-    function getFallbackDemoMetrics() {
-        return {
-            use_cases: {
-                "customer_support_chatbot": {
-                    total_requests: 340,
-                    empirical_coverage: 96.8,
-                    guaranteed_coverage: 95.0,
-                    false_positive_rate: 3.1,
-                    false_negative_rate: 0.0,
-                    cost_saved_usd: 148.50,
-                    avg_latency_ms: { ALLOW: 78, MODIFY: 142, REGENERATE: 280, HUMAN: 12 },
-                    tier_distribution: { ALLOW: 245, MODIFY: 52, REGENERATE: 28, HUMAN: 12, BLOCK: 3 }
-                },
-                "medical_clinical_assistant": {
-                    total_requests: 180,
-                    empirical_coverage: 99.4,
-                    guaranteed_coverage: 99.0,
-                    false_positive_rate: 1.8,
-                    false_negative_rate: 0.0,
-                    cost_saved_usd: 94.20,
-                    avg_latency_ms: { ALLOW: 64, MODIFY: 110, REGENERATE: 210, HUMAN: 18 },
-                    tier_distribution: { ALLOW: 112, MODIFY: 48, REGENERATE: 12, HUMAN: 8, BLOCK: 0 }
-                },
-                "creative_studio_copilot": {
-                    total_requests: 210,
-                    empirical_coverage: 95.2,
-                    guaranteed_coverage: 90.0,
-                    false_positive_rate: 0.9,
-                    false_negative_rate: 0.4,
-                    cost_saved_usd: 62.10,
-                    avg_latency_ms: { ALLOW: 92, MODIFY: 160, REGENERATE: 310, HUMAN: 4 },
-                    tier_distribution: { ALLOW: 178, MODIFY: 22, REGENERATE: 8, HUMAN: 2, BLOCK: 0 }
-                }
-            }
-        };
     }
 });
