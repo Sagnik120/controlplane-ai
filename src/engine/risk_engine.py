@@ -41,8 +41,7 @@ class RiskEngine:
         self.cost_monitor = CostMonitor()
         self.thread_pool = ThreadPoolExecutor(max_workers=4)
         
-        embedder = EmbeddingRegistry.get_embedder()
-        self.overlap_detector = SemanticOverlapDetector(embedder)
+        self.overlap_detector = SemanticOverlapDetector()
         
         # Load severity matrix
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
