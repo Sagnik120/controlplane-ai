@@ -3,87 +3,478 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ControlPlane-AI Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <title>ControlPlane-AI — Enterprise GenAI Risk Orchestration Engine</title>
+    <meta name="description" content="Tiered risk orchestration platform evaluating safety, privacy, fairness, and hallucination in real-time.">
+    <!-- Modern Swiss Editorial Typography: Space Grotesk + DM Sans + JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="background-mesh">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-    </div>
-    
-    <main class="dashboard-container">
-        <header style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
-            <div>
-                <div class="logo">
-                    <div class="pulse-ring"></div>
-                    <h1>ControlPlane<span class="highlight">-AI</span></h1>
+    <!-- Top Navigation Bar -->
+    <nav class="nav-bar">
+        <div class="nav-content">
+            <a href="#" class="brand-link">
+                <div class="orbital-logo">
+                    <span class="orbital-ring"></span>
+                    <span class="orbital-core"></span>
                 </div>
-                <p class="subtitle">Enterprise GenAI Risk Orchestration Engine</p>
-            </div>
-            <a href="metrics.html" class="primary-btn" style="padding: 8px 16px; font-size: 0.9rem; background: rgba(87, 166, 255, 0.1); border: 1px solid rgba(87, 166, 255, 0.3); height: fit-content; white-space: nowrap; margin-top: 8px;">
-                View Trust Metrics
+                <div class="wordmark">
+                    <span class="brand-name">CONTROLPLANE</span>
+                    <span class="brand-tag">AI</span>
+                </div>
             </a>
-        </header>
+            
+            <div class="nav-links">
+                <a href="#pipeline-section" class="nav-item active">Live Test</a>
+                <a href="metrics.html" class="nav-item">Trust Metrics</a>
+                <a href="#evidence-section" class="nav-item">Architecture</a>
+            </div>
 
-        <div class="grid-layout">
-            <!-- Left Side: Inputs -->
-            <section class="control-panel glass-panel slide-up">
-                <div class="input-group">
-                    <label for="policy-select">Use-Case Policy</label>
-                    <select id="policy-select">
-                        <option value="standard">Loading policies...</option>
-                    </select>
-                    <p id="policy-desc" class="micro-text">Select a policy to determine risk thresholds.</p>
-                </div>
-                
-                <div class="input-group">
-                    <label for="prompt-input">Input Prompt</label>
-                    <textarea id="prompt-input" rows="5" placeholder="Type a prompt to test the guardrails... Try 'steal a car', 'women are typically', or a PII like '123-45-6789'"></textarea>
-                </div>
-                
-                <button id="generate-btn" class="primary-btn">
-                    <span class="btn-text">Run Pipeline Orchestrator</span>
-                    <div class="loader hidden"></div>
-                </button>
-            </section>
-
-            <!-- Right Side: Outputs -->
-            <section id="results-panel" class="results-panel hidden fade-in">
-                <div class="result-header">
-                    <h2>Pipeline Decision</h2>
-                    <div id="decision-badge" class="badge">ALLOW</div>
-                </div>
-                
-                <div class="output-box glass-panel">
-                    <p id="final-output-text"></p>
-                    <p id="rationale-text" class="rationale micro-text"></p>
-                </div>
-
-                <div class="risk-section-header">
-                    <h3>Risk Report Breakdown</h3>
-                </div>
-                
-                <div class="risk-metrics">
-                    <div class="metric-card glass-panel">
-                        <span class="metric-title">Overall Risk Score</span>
-                        <span id="overall-risk" class="metric-value">0.0</span>
-                    </div>
-                    <div class="metric-card glass-panel">
-                        <span class="metric-title">Overlap Penalty</span>
-                        <span id="overlap-status" class="metric-value">False</span>
-                    </div>
-                </div>
-
-                <div class="checkers-grid" id="checkers-grid">
-                    <!-- Checkers injected here via JS -->
-                </div>
-                <div id="overlap-expl" class="overlap-expl glass-panel warning-glass hidden"></div>
-            </section>
+            <div class="system-status-chip">
+                <span class="status-beacon"></span>
+                <span class="status-label">Policy engine online</span>
+                <span class="status-code">v2.4-ORCH</span>
+            </div>
         </div>
-    </main>
+    </nav>
+
+    <!-- HERO SECTION: Asymmetric Dark Ink-Navy Command Room -->
+    <header class="hero-section">
+        <div class="container hero-grid">
+            <!-- Left Editorial Block -->
+            <div class="hero-left">
+                <div class="eyebrow-tag">
+                    <span class="dot-prefix"></span>
+                    ENTERPRISE GENAI RISK ORCHESTRATION
+                </div>
+                <h1 class="hero-headline">
+                    Ship the answer.<br>
+                    <span class="text-lime">Keep the control.</span>
+                </h1>
+                <p class="hero-description">
+                    ControlPlane-AI intercepts, evaluates, and repairs generative model responses in-flight. 
+                    Enforcing mathematical risk bounds with conformal calibration before unsafe tokens touch enterprise workflows.
+                </p>
+                <div class="hero-actions">
+                    <a href="#pipeline-section" class="btn btn-lime">
+                        <span>Run a live test</span>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                    <a href="#evidence-section" class="btn btn-ghost">
+                        <span>See how it works</span>
+                    </a>
+                </div>
+
+                <!-- Fact Ledger -->
+                <div class="fact-ledger">
+                    <div class="fact-item">
+                        <span class="fact-val">04</span>
+                        <span class="fact-lbl">Active Guardrail Layers</span>
+                    </div>
+                    <div class="fact-sep"></div>
+                    <div class="fact-item">
+                        <span class="fact-val">0.42</span>
+                        <span class="fact-lbl">Default Review Threshold (τ)</span>
+                    </div>
+                    <div class="fact-sep"></div>
+                    <div class="fact-item">
+                        <span class="fact-val">&lt; 120ms</span>
+                        <span class="fact-lbl">Target Orchestration Latency</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Command-Plane Visualization -->
+            <div class="hero-right">
+                <div class="command-plane-card">
+                    <div class="plane-header">
+                        <span class="mono-label">PLANE / 01 · ROUTING SCHEMATIC</span>
+                        <span class="badge-mini">SIGNAL ROUTING ACTIVE</span>
+                    </div>
+                    
+                    <div class="schematic-canvas">
+                        <!-- Top Prompt Flow -->
+                        <div class="schematic-node prompt-node">
+                            <div class="node-icon">IN</div>
+                            <div class="node-meta">
+                                <span class="node-title">RAW USER PROMPT</span>
+                                <span class="node-sub mono">stream_id: 0x8F21</span>
+                            </div>
+                        </div>
+
+                        <!-- Central Bus with 4 parallel checkers -->
+                        <div class="routing-bus">
+                            <div class="bus-line main-spine"></div>
+                            <div class="checker-lanes">
+                                <div class="lane-card active-lane" id="lane-saf">
+                                    <div class="lane-header">
+                                        <span class="lane-code mono">01 / SAF</span>
+                                        <span class="lane-state mono">READY</span>
+                                    </div>
+                                    <span class="lane-name">Content Safety</span>
+                                </div>
+                                <div class="lane-card active-lane" id="lane-pii">
+                                    <div class="lane-header">
+                                        <span class="lane-code mono">02 / PII</span>
+                                        <span class="lane-state mono">READY</span>
+                                    </div>
+                                    <span class="lane-name">Data Exposure (Presidio)</span>
+                                </div>
+                                <div class="lane-card active-lane" id="lane-fai">
+                                    <div class="lane-header">
+                                        <span class="lane-code mono">03 / FAI</span>
+                                        <span class="lane-state mono">READY</span>
+                                    </div>
+                                    <span class="lane-name">Fairness &amp; Bias</span>
+                                </div>
+                                <div class="lane-card active-lane" id="lane-int">
+                                    <div class="lane-header">
+                                        <span class="lane-code mono">04 / INT</span>
+                                        <span class="lane-state mono">READY</span>
+                                    </div>
+                                    <span class="lane-name">Integrity &amp; Hallucination</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Policy Gate Decision Point -->
+                        <div class="schematic-node gate-node">
+                            <div class="gate-core">
+                                <span class="lime-beacon"></span>
+                                <span class="gate-title mono">POLICY GATE (CONFORMAL ACI)</span>
+                            </div>
+                            <div class="gate-output-routes mono">
+                                <span class="route-pill route-allow">ALLOW</span>
+                                <span class="route-pill route-mod">MODIFY</span>
+                                <span class="route-pill route-regen">REGEN</span>
+                                <span class="route-pill route-human">HUMAN</span>
+                                <span class="route-pill route-block">BLOCK</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="plane-footer">
+                        <span class="mono-meta">ASYNC DISPATCH: 4-WAY PARALLEL</span>
+                        <span class="mono-meta">COVERAGE GUARANTEE: 95.0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dark Operational Ticker Strip -->
+        <div class="ticker-strip">
+            <div class="ticker-track">
+                <span class="ticker-item"><span class="ticker-dot"></span> OBSERVE EVERY PROMPT</span>
+                <span class="ticker-item"><span class="ticker-dot"></span> 5 TIERED INTERVENTIONS</span>
+                <span class="ticker-item"><span class="ticker-dot"></span> EXPLAIN EVERY DECISION</span>
+                <span class="ticker-item"><span class="ticker-dot"></span> PRESIDIO INDIA REGULATORY COMPLIANCE</span>
+                <span class="ticker-item"><span class="ticker-dot"></span> MOVE WITH CONFIDENCE</span>
+                <span class="ticker-item"><span class="ticker-dot"></span> ADAPTIVE CONFORMAL DRIFT TRACKING</span>
+                <span class="ticker-item"><span class="ticker-dot"></span> NOISY-OR MULTI-CHECKER AGGREGATION</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- LIVE PIPELINE INTERACTIVE CONSOLE -->
+    <section id="pipeline-section" class="pipeline-section">
+        <div class="container">
+            <div class="section-lead-grid">
+                <div class="lead-text-col">
+                    <div class="section-num mono">01 // LIVE TEST CONSOLE</div>
+                    <h2 class="section-title">Run the prompt<br>through the plane.</h2>
+                    <p class="section-desc">
+                        Select an enterprise policy profile or craft an adversarial payload. Watch the orchestrator evaluate risk in real-time, detect cross-checker semantic overlaps, and enforce the optimal intervention.
+                    </p>
+
+                    <!-- Evidence Path Signal Spine -->
+                    <div class="signal-spine">
+                        <div class="spine-item" id="stage-step-1">
+                            <span class="spine-num mono">01</span>
+                            <div class="spine-info">
+                                <span class="spine-title">Policy Selection &amp; Budget Fit</span>
+                                <span class="spine-sub">Loads conformal bounds &amp; latency budget</span>
+                            </div>
+                        </div>
+                        <div class="spine-item" id="stage-step-2">
+                            <span class="spine-num mono">02</span>
+                            <div class="spine-info">
+                                <span class="spine-title">Parallel Risk Evaluation</span>
+                                <span class="spine-sub">Concurrent PII, Safety, Bias &amp; Hallucination checks</span>
+                            </div>
+                        </div>
+                        <div class="spine-item" id="stage-step-3">
+                            <span class="spine-num mono">03</span>
+                            <div class="spine-info">
+                                <span class="spine-title">Semantic Overlap Aggregation</span>
+                                <span class="spine-sub">Calculates Noisy-OR co-occurring penalties</span>
+                            </div>
+                        </div>
+                        <div class="spine-item" id="stage-step-4">
+                            <span class="spine-num mono">04</span>
+                            <div class="spine-info">
+                                <span class="spine-title">Surgical Repair or Tier Decision</span>
+                                <span class="spine-sub">ALLOW, In-Place MODIFY, Resample or Human Review</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Console Grid -->
+                <div class="console-wrapper">
+                    <!-- Top Console Tab Header -->
+                    <div class="console-toolbar">
+                        <div class="console-tab active">
+                            <span class="terminal-dot"></span>
+                            <span class="mono">RUNTIME TESTBENCH</span>
+                        </div>
+                        <div class="console-mode mono">
+                            MODE: <span class="text-lime">INTERCEPTOR_ACTIVE</span>
+                        </div>
+                    </div>
+
+                    <div class="console-body-grid">
+                        <!-- Panel 1: Configure the Run -->
+                        <div class="panel config-panel">
+                            <div class="panel-header">
+                                <span class="panel-num mono">PANEL A</span>
+                                <span class="panel-title">Configure the Run</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="input-lbl" for="policy-select">
+                                    <span>Target Policy Profile</span>
+                                    <span class="mono text-muted" id="policy-profile-code">PROFILE: STANDARD</span>
+                                </label>
+                                <div class="select-wrapper">
+                                    <select id="policy-select">
+                                        <option value="standard">Standard Chatbot (General Enterprise)</option>
+                                        <option value="medical">Medical Assistant (Strict PII Redact &amp; Zero Tolerance)</option>
+                                        <option value="lenient">Creative Studio (Higher Tolerances for Creative Writing)</option>
+                                    </select>
+                                </div>
+                                <div class="policy-meta-card">
+                                    <p id="policy-desc" class="policy-desc-text">General purpose AI chatbot with standard calibrated thresholds.</p>
+                                    <div class="policy-threshold-meter">
+                                        <span class="mono text-muted">Review Threshold:</span>
+                                        <span class="mono text-lime" id="policy-threshold-val">τ_low: 0.42 · τ_high: 0.85</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="prompt-header">
+                                    <label class="input-lbl" for="prompt-input">Input Prompt / Test Payload</label>
+                                    <span class="mono text-muted char-count" id="prompt-char-count">0 chars</span>
+                                </div>
+                                <textarea id="prompt-input" rows="4" placeholder="Enter prompt to evaluate... or choose a test chip below"></textarea>
+                                
+                                <!-- Sample Prompt Chips -->
+                                <div class="prompt-chips-tray">
+                                    <span class="chips-label mono">SAMPLES:</span>
+                                    <button type="button" class="chip-btn" data-sample="safe">
+                                        <span class="chip-dot dot-green"></span> Clean
+                                    </button>
+                                    <button type="button" class="chip-btn" data-sample="pii">
+                                        <span class="chip-dot dot-yellow"></span> Sensitive PII
+                                    </button>
+                                    <button type="button" class="chip-btn" data-sample="fairness">
+                                        <span class="chip-dot dot-yellow"></span> Fairness
+                                    </button>
+                                    <button type="button" class="chip-btn" data-sample="harm">
+                                        <span class="chip-dot dot-red"></span> Harm Risk
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="action-footer">
+                                <button id="generate-btn" class="btn btn-lime-full">
+                                    <span class="btn-spinner hidden" id="btn-spinner"></span>
+                                    <span class="btn-label" id="btn-label">Run Pipeline Orchestrator</span>
+                                    <svg class="btn-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                                <span class="helper-note mono">Local test mode · live audit telemetry active</span>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Pipeline Decision & Evidence -->
+                        <div class="panel decision-panel" id="decision-panel">
+                            <div class="panel-header">
+                                <span class="panel-num mono">PANEL B</span>
+                                <span class="panel-title">Pipeline Decision &amp; Ledger</span>
+                                <span class="exec-latency mono" id="exec-latency">IDLE</span>
+                            </div>
+
+                            <!-- Dormant State View (Shown before execution) -->
+                            <div id="dormant-view" class="dormant-view">
+                                <div class="dormant-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                                </div>
+                                <div class="dormant-text">
+                                    <h4 class="mono">AWAITING PAYLOAD INGESTION</h4>
+                                    <p>Select a policy profile and prompt, then run the pipeline orchestrator to inspect real-time risk evidence.</p>
+                                </div>
+                                <div class="checker-slots-dormant">
+                                    <div class="slot-item"><span class="slot-tag mono">SAF</span><span class="slot-name">Safety</span><span class="slot-state mono">QUEUED</span></div>
+                                    <div class="slot-item"><span class="slot-tag mono">PII</span><span class="slot-name">Exposure</span><span class="slot-state mono">QUEUED</span></div>
+                                    <div class="slot-item"><span class="slot-tag mono">FAI</span><span class="slot-name">Fairness</span><span class="slot-state mono">QUEUED</span></div>
+                                    <div class="slot-item"><span class="slot-tag mono">INT</span><span class="slot-name">Integrity</span><span class="slot-state mono">QUEUED</span></div>
+                                </div>
+                            </div>
+
+                            <!-- Live Active Scanning Animation -->
+                            <div id="scanning-view" class="scanning-view hidden">
+                                <div class="scan-progress-bar">
+                                    <div class="scan-fill"></div>
+                                </div>
+                                <div class="scan-stages">
+                                    <div class="scan-stage-item active" id="scan-s1">
+                                        <span class="stage-spin"></span>
+                                        <span class="stage-name mono">1. Policy Fit &amp; Token Ingest</span>
+                                    </div>
+                                    <div class="scan-stage-item" id="scan-s2">
+                                        <span class="stage-spin"></span>
+                                        <span class="stage-name mono">2. Parallel Risk Evaluation</span>
+                                    </div>
+                                    <div class="scan-stage-item" id="scan-s3">
+                                        <span class="stage-spin"></span>
+                                        <span class="stage-name mono">3. Semantic Overlap Mapping</span>
+                                    </div>
+                                    <div class="scan-stage-item" id="scan-s4">
+                                        <span class="stage-spin"></span>
+                                        <span class="stage-name mono">4. Conformal Decision Merge</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Evaluated Decision View -->
+                            <div id="result-view" class="result-view hidden">
+                                <!-- Decision Verdict Banner -->
+                                <div class="verdict-banner">
+                                    <div class="verdict-meta">
+                                        <span class="mono verdict-label">FINAL DECISION TIER</span>
+                                        <div id="decision-badge" class="badge-verdict badge-allow">ALLOW</div>
+                                    </div>
+                                    <div class="verdict-metrics-group">
+                                        <div class="v-metric">
+                                            <span class="v-label mono">OVERALL RISK</span>
+                                            <span class="v-val mono text-lime" id="overall-risk-val">0.05</span>
+                                        </div>
+                                        <div class="v-metric">
+                                            <span class="v-label mono">OVERLAP PENALTY</span>
+                                            <span class="v-val mono" id="overlap-val">NONE</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Output Release Container -->
+                                <div class="output-container">
+                                    <div class="output-header">
+                                        <span class="mono text-muted">SYNTHESIZED OUTPUT STREAM</span>
+                                        <button type="button" class="copy-btn mono" id="copy-output-btn">COPY</button>
+                                    </div>
+                                    <div class="output-text-box" id="final-output-box">
+                                        System output text will appear here.
+                                    </div>
+                                    <div class="rationale-banner">
+                                        <span class="mono rationale-tag">RATIONALE:</span>
+                                        <span id="rationale-text" class="rationale-body">Decision rationale description.</span>
+                                    </div>
+                                </div>
+
+                                <!-- Overlap Alert Notice (if applicable) -->
+                                <div id="overlap-alert" class="overlap-alert hidden">
+                                    <span class="alert-icon">⚠️</span>
+                                    <div class="alert-text">
+                                        <strong class="mono">SEMANTIC RISK CO-OCCURRENCE DETECTED:</strong>
+                                        <p id="overlap-expl-text">Cross-checker overlap compounded the aggregate risk score.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Detailed Checker Breakdown Cards -->
+                                <div class="breakdown-section">
+                                    <span class="mono breakdown-title">EVIDENCE LEDGER BREAKDOWN</span>
+                                    <div class="checkers-grid" id="checkers-grid">
+                                        <!-- Injected via JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TRUST & AUDIT EVIDENCE SECTION -->
+    <section id="evidence-section" class="evidence-section">
+        <div class="container">
+            <div class="evidence-header-block">
+                <div class="eyebrow-tag dark-mode-tag">
+                    <span class="dot-prefix"></span>
+                    PROVABLE RISK GOVERNANCE
+                </div>
+                <h2 class="section-title text-dark">Trust is a system property.</h2>
+                <p class="section-desc text-dark-muted">
+                    Traditional guardrails act like opaque walls. ControlPlane-AI gives engineering teams an auditable, mathematical guarantee backed by conformal inference.
+                </p>
+            </div>
+
+            <div class="evidence-cards-grid">
+                <div class="evidence-card">
+                    <div class="card-num mono">01 // CONTEXTUAL</div>
+                    <h3 class="card-heading">100% Evidence Return</h3>
+                    <p class="card-p">Every intervention delivers token-level spans, entity extractions, and mathematical confidence rationales — not just binary passes.</p>
+                    <div class="card-tag-mono mono">DECISION CONTEXT · NOT GUESSWORK</div>
+                </div>
+
+                <div class="evidence-card">
+                    <div class="card-num mono">02 // PARALLEL</div>
+                    <h3 class="card-heading">04× Async Signal Merge</h3>
+                    <p class="card-p">Presidio NER, LLM-as-a-judge, and semantic overlap detectors execute concurrently in parallel worker pools without blocking event loops.</p>
+                    <div class="card-tag-mono mono">INDEPENDENT CHECKS · ONE PLANE</div>
+                </div>
+
+                <div class="evidence-card">
+                    <div class="card-num mono">03 // LATENCY</div>
+                    <h3 class="card-heading">&lt; 120ms Nominal Latency</h3>
+                    <p class="card-p">Budget-aware circuit breakers guarantee that governance pipelines never bottleneck mission-critical real-time conversational flows.</p>
+                    <div class="card-tag-mono mono">GOVERNANCE AT PRODUCTION SPEED</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER / CLOSING ACTION -->
+    <footer class="footer-section">
+        <div class="container footer-grid">
+            <div class="footer-cta">
+                <h2 class="footer-headline">Make the safe path<br><span class="text-lime">the fast path.</span></h2>
+                <p class="footer-p">
+                    Built for enterprise production deployments with zero data retention and guaranteed mathematical risk boundaries.
+                </p>
+                <div class="footer-actions">
+                    <a href="#pipeline-section" class="btn btn-lime">
+                        <span>Run another test</span>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                    <a href="metrics.html" class="btn btn-ghost">
+                        <span>Open Calibration Ledger</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="footer-status-pane">
+                <div class="system-id-box mono">
+                    <span class="text-lime">CONTROLPLANE-AI // RISK ORCHESTRATION ENGINE</span>
+                    <span class="text-muted">SYSTEM REVISION: 2.4.0-PROD</span>
+                    <span class="text-muted">FASTAPI CORE · PRESIDIO NER · CONFORMAL ACI</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>

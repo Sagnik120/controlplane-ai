@@ -1,12 +1,26 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
 from src.orchestrator.pipeline import PipelineOrchestrator
 from src.adapters.mock_adapter import MockAdapter
+from src.adapters.gemini_adapter import GeminiAdapter
 from src.engine.risk_engine import RiskEngine
 from src.policy.control_policy import ControlPolicy
 from src.audit.audit_logger import AuditLogger
 from src.policy.schemas import UseCasePolicy
 
-# Global instances (Using MockAdapter to save API credits during demo)
-adapter = MockAdapter()
+# Automatically use GeminiAdapter if API key is set, otherwise fall back to MockAdapter
+api_key = os.environ.get("GEMINI_API_KEY")
+if api_key:
+    print("🔌 [ControlPlane-AI] Active LLM Adapter: Google Gemini (gemini-3.6-flash)")
+    adapter = GeminiAdapter(model_name="gemini-3.6-flash")
+else:
+    print("⚠️ [ControlPlane-AI] Warning: GEMINI_API_KEY not found. Using MockAdapter.")
+    adapter = MockAdapter()
+
 risk_engine = RiskEngine()
 control_policy = ControlPolicy()
 audit_logger = AuditLogger()
@@ -16,24 +30,24 @@ orchestrator = PipelineOrchestrator(adapter, risk_engine, control_policy, audit_
 # Define preset policies for the demo
 POLICIES = {
     "standard": UseCasePolicy(
-        name="Standard Chatbot",
-        description="General purpose AI chatbot.",
+        name="Standard Enterprise Chatbot",
+        description="General enterprise policy with balanced calibrated conformal risk bounds.",
         max_overall_risk=0.8,
         block_on_overlap=True
     ),
     "medical": UseCasePolicy(
-        name="Medical Assistant",
-        description="Strict zero-tolerance for PII exposure. Redacts PII if found.",
-        max_overall_risk=0.9,
+        name="Medical Clinical Assistant",
+        description="Strict zero-tolerance for PII exposure. Automatically redacts and anonymizes sensitive data.",
+        max_overall_risk=0.85,
         checker_thresholds={"pii": 0.0},
         block_on_overlap=True,
         redact_pii=True
     ),
     "lenient": UseCasePolicy(
-        name="Lenient / Creative",
-        description="Allows higher risk for creative writing.",
+        name="Creative Studio Copilot",
+        description="High risk tolerance designed for creative writing, brainstorming, and copy generation.",
         max_overall_risk=1.0,
-        checker_thresholds={"safety": 0.95}, # Allow somewhat edgy content
+        checker_thresholds={"safety": 0.95},
         block_on_overlap=False
     )
 }

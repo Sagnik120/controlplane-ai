@@ -30,8 +30,8 @@ class GeminiAdapter(BaseLLMAdapter):
                 if chunk.text:
                     yield chunk.text
         except Exception as e:
-            # Provide a fallback error chunk so the stream doesn't crash silently
-            yield f"[Error generating response from Gemini: {str(e)}]"
+            # Cleanly bubble up the exact upstream provider error
+            raise RuntimeError(f"Gemini API Error: {str(e)}")
 
     def generate_once(self, prompt: str, temperature: float = 1.0) -> str:
         try:
@@ -43,4 +43,4 @@ class GeminiAdapter(BaseLLMAdapter):
             )
             return response.text if response.text else ""
         except Exception as e:
-            return f"[Error generating response from Gemini: {str(e)}]"
+            raise RuntimeError(f"Gemini API Error: {str(e)}")
